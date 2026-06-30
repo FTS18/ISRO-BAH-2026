@@ -14,9 +14,9 @@ print("=" * 60)
 print("\nTest 1: Loading models...")
 try:
     model_loader = ModelLoader(model_dir='models')
-    print("✓ All models loaded successfully")
+    print("SUCCESS: All models loaded successfully")
 except Exception as e:
-    print(f"✗ Error: {e}")
+    print(f"ERROR: {e}")
     sys.exit(1)
 
 # Test 2: Rainfall prediction
@@ -31,18 +31,18 @@ try:
     prediction = model_loader.models['rainfall_lstm'].predict(dummy_scaled, verbose=0)
     prediction_actual = model_loader.scalers['rainfall'].inverse_transform(prediction)
     
-    print(f"✓ Rainfall prediction: {prediction_actual[0][0]:.2f} mm")
+    print(f"SUCCESS: Rainfall prediction: {prediction_actual[0][0]:.2f} mm")
 except Exception as e:
-    print(f"✗ Error: {e}")
+    print(f"ERROR: {e}")
 
 # Test 3: Temperature prediction
 print("\nTest 3: Temperature prediction...")
 try:
     dummy_features = np.array([[45.2, 50.1, 48.3, 31.5, 22.1, 0.5, 0.866, 9.4]])
     max_temp, min_temp = model_loader.predict_temperature(dummy_features)
-    print(f"✓ Max Temp: {max_temp[0]:.2f}°C, Min Temp: {min_temp[0]:.2f}°C")
+    print(f"SUCCESS: Max Temp: {max_temp[0][0]:.2f} C, Min Temp: {min_temp[0][0]:.2f} C")
 except Exception as e:
-    print(f"✗ Error: {e}")
+    print(f"ERROR: {e}")
 
 # Test 4: What-if simulation
 print("\nTest 4: What-if simulation...")
@@ -63,10 +63,10 @@ try:
     }
     
     results = predictor.simulate_what_if(current, 20, 2)
-    print(f"✓ Original rainfall: {results['original_rainfall']:.2f} mm")
-    print(f"✓ Modified rainfall: {results['modified_rainfall']:.2f} mm (+20%)")
+    print(f"SUCCESS: Original rainfall: {results['original_rainfall']:.2f} mm")
+    print(f"SUCCESS: Modified rainfall: {results['modified_rainfall']:.2f} mm (+20%)")
 except Exception as e:
-    print(f"✗ Error: {e}")
+    print(f"ERROR: {e}")
 
 print("\n" + "=" * 60)
 print("ALL TESTS PASSED - Ready for Streamlit!")
