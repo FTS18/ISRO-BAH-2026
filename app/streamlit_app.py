@@ -730,9 +730,25 @@ def render_map(fig, use_container_width=True, on_select=None, key=None):
         else:
             chart_ret = st.plotly_chart(fig, use_container_width=use_container_width, key=key)
             
-    # Render custom horizontal color scale bar
-    if hasattr(fig, "vmin") and hasattr(fig, "vmax"):
-        render_scale_bar(fig.val_name, fig.colorscale, fig.vmin, fig.vmax)
+    # Retrieve scale metadata from either PyDeck attributes or Plotly layout.meta
+    vmin = vmax = colorscale = val_name = None
+    if isinstance(fig, pdk.Deck):
+        if hasattr(fig, "vmin") and hasattr(fig, "vmax"):
+            vmin = fig.vmin
+            vmax = fig.vmax
+            colorscale = fig.colorscale
+            val_name = fig.val_name
+    else:
+        # Plotly figure
+        meta = getattr(fig.layout, "meta", None)
+        if isinstance(meta, dict):
+            vmin = meta.get("vmin")
+            vmax = meta.get("vmax")
+            colorscale = meta.get("colorscale")
+            val_name = meta.get("val_name")
+
+    if vmin is not None and vmax is not None:
+        render_scale_bar(val_name, colorscale, vmin, vmax)
         
     return chart_ret
 
@@ -989,13 +1005,9 @@ def plot_spatial_map(data_array, title, colorscale, val_name="Value", zmin=None,
 
     fig.update_layout(
         paper_bgcolor="#111827", plot_bgcolor="#0B0F19", font=dict(color="#F8FAFC"),
-        height=750, margin=dict(l=0, r=0, t=10, b=0)
+        height=750, margin=dict(l=0, r=0, t=10, b=0),
+        meta=dict(vmin=float(vmin), vmax=float(vmax), colorscale=colorscale, val_name=val_name)
     )
-
-    fig.vmin = float(vmin)
-    fig.vmax = float(vmax)
-    fig.colorscale = colorscale
-    fig.val_name = val_name
     return fig
 
 def plot_spatial_forecast_animation(predictions, base_grid, c_scale, val_name="Value", zmin=None, zmax=None, pilot_region="Karnataka"):
@@ -1072,10 +1084,7 @@ def plot_spatial_forecast_animation(predictions, base_grid, c_scale, val_name="V
     vmax = float(zmax) if zmax is not None else float(df_all[val_name].max())
     if vmin == vmax: vmax += 1e-5
     
-    fig.vmin = vmin
-    fig.vmax = vmax
-    fig.colorscale = c_scale
-    fig.val_name = val_name
+    fig.update_layout(meta=dict(vmin=vmin, vmax=vmax, colorscale=c_scale, val_name=val_name))
     
     return fig
 
