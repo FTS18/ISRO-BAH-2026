@@ -1175,38 +1175,6 @@ if page == "Dashboard":
         st.markdown(f'<h3 class="section-header" style="margin-top: 0px;">Geospatial Mapbox Assimilation ({selected_date})</h3>', unsafe_allow_html=True)
         st.markdown("<p style='font-size: 0.8rem; color: #94A3B8; margin-top: -0.5rem; margin-bottom: 0.8rem;'>Note: Dry grid points (<0.1 mm/day) are filtered out to highlight active precipitation bands. Coordinate data coverage is fully assimilated.</p>", unsafe_allow_html=True)
         
-        # Three-domain surface process coverage banner — ISRO PS-5 requirement
-        d_col1, d_col2, d_col3 = st.columns(3)
-        with d_col1:
-            st.markdown(
-                "<div style='background:#0D1829;border:1px solid rgba(255,255,255,0.07);"
-                "border-left:2px solid #FF6B00;border-radius:2px;"
-                "padding:8px 12px;margin-bottom:10px;'>"
-                "<span style='font-size:0.62rem;color:#64748B;font-weight:600;"
-                "letter-spacing:1px;text-transform:uppercase;'>Atmospheric Domain</span><br>"
-                "<span style='font-size:0.72rem;color:#94A3B8;'>IMD Rainfall &mdash; Max/Min Temp &mdash; Wind Vectors &mdash; SPI-30/90</span>"
-                "</div>", unsafe_allow_html=True
-            )
-        with d_col2:
-            st.markdown(
-                "<div style='background:#0D1829;border:1px solid rgba(255,255,255,0.07);"
-                "border-left:2px solid #FF6B00;border-radius:2px;"
-                "padding:8px 12px;margin-bottom:10px;'>"
-                "<span style='font-size:0.62rem;color:#64748B;font-weight:600;"
-                "letter-spacing:1px;text-transform:uppercase;'>Oceanic Domain</span><br>"
-                "<span style='font-size:0.72rem;color:#94A3B8;'>INSAT-3D SST &mdash; MOSDAC INSAT Rainfall &mdash; IOD &mdash; ENSO</span>"
-                "</div>", unsafe_allow_html=True
-            )
-        with d_col3:
-            st.markdown(
-                "<div style='background:#0D1829;border:1px solid rgba(255,255,255,0.07);"
-                "border-left:2px solid #FF6B00;border-radius:2px;"
-                "padding:8px 12px;margin-bottom:10px;'>"
-                "<span style='font-size:0.62rem;color:#64748B;font-weight:600;"
-                "letter-spacing:1px;text-transform:uppercase;'>Land Surface Domain</span><br>"
-                "<span style='font-size:0.72rem;color:#94A3B8;'>INSAT LST &mdash; NICES Soil Moisture &mdash; FAO-56 CWSI &mdash; Basin Masks</span>"
-                "</div>", unsafe_allow_html=True
-            )
 
         tab_rain, tab_maxt, tab_mint, tab_lst, tab_sst, tab_insat_rain, tab_fused, tab_sm = st.tabs([
             "IMD Rainfall (0.25°)", 
@@ -1523,6 +1491,43 @@ if page == "Dashboard":
                     with st.spinner("Accessing regional agro-climatic contingency plans..."):
                         response = copilot.generate_response(user_query, curr_rain_mean, curr_temp_mean, curr_temp_max, pilot_region)
                         st.markdown(f'<div style="background-color: #121D30; border: 1px solid #20334E; padding: 20px; margin-top: 10px; color: #E2E8F0;">{response}</div>', unsafe_allow_html=True)
+
+# Three-domain surface process coverage banner — ISRO PS-5 requirement
+# Placed at the bottom of the Dashboard as a summary of data domains covered.
+if page == "Dashboard":
+    st.markdown("<hr style='border:none;border-top:1px solid rgba(255,255,255,0.06);margin:1.2rem 0 1rem 0;'>", unsafe_allow_html=True)
+    st.markdown("<p style='font-size:0.62rem;color:#475569;font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:0.5rem;'>Data Domain Coverage</p>", unsafe_allow_html=True)
+    d_col1, d_col2, d_col3 = st.columns(3)
+    with d_col1:
+        st.markdown(
+            "<div style='background:#0D1829;border:1px solid rgba(255,255,255,0.07);"
+            "border-left:2px solid #FF6B00;border-radius:2px;"
+            "padding:8px 12px;'>"
+            "<span style='font-size:0.62rem;color:#64748B;font-weight:600;"
+            "letter-spacing:1px;text-transform:uppercase;'>Atmospheric Domain</span><br>"
+            "<span style='font-size:0.72rem;color:#94A3B8;'>IMD Rainfall &mdash; Max/Min Temp &mdash; Wind Vectors &mdash; SPI-30/90</span>"
+            "</div>", unsafe_allow_html=True
+        )
+    with d_col2:
+        st.markdown(
+            "<div style='background:#0D1829;border:1px solid rgba(255,255,255,0.07);"
+            "border-left:2px solid #FF6B00;border-radius:2px;"
+            "padding:8px 12px;'>"
+            "<span style='font-size:0.62rem;color:#64748B;font-weight:600;"
+            "letter-spacing:1px;text-transform:uppercase;'>Oceanic Domain</span><br>"
+            "<span style='font-size:0.72rem;color:#94A3B8;'>INSAT-3D SST &mdash; MOSDAC INSAT Rainfall &mdash; IOD &mdash; ENSO</span>"
+            "</div>", unsafe_allow_html=True
+        )
+    with d_col3:
+        st.markdown(
+            "<div style='background:#0D1829;border:1px solid rgba(255,255,255,0.07);"
+            "border-left:2px solid #FF6B00;border-radius:2px;"
+            "padding:8px 12px;'>"
+            "<span style='font-size:0.62rem;color:#64748B;font-weight:600;"
+            "letter-spacing:1px;text-transform:uppercase;'>Land Surface Domain</span><br>"
+            "<span style='font-size:0.72rem;color:#94A3B8;'>INSAT LST &mdash; NICES Soil Moisture &mdash; FAO-56 CWSI &mdash; Basin Masks</span>"
+            "</div>", unsafe_allow_html=True
+        )
 
 # PAGE 2: SPATIAL PREDICTIONS
 elif page == "Spatial Predictions":
