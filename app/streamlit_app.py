@@ -753,6 +753,8 @@ def render_map(fig, use_container_width=True, on_select=None, key=None):
     return chart_ret
 
 def plot_spatial_map(data_array, title, colorscale, val_name="Value", zmin=None, zmax=None, plot_wind=False):
+    if data_array.name is None:
+        data_array = data_array.rename("value")
     df = data_array.to_dataframe().reset_index()
     df = df.dropna()
     
