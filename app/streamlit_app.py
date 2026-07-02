@@ -160,10 +160,10 @@ st.markdown("""
         [data-testid="stSidebar"] h3 {
             font-size: 0.58rem !important; font-weight: 700 !important;
             color: #94A3B8 !important; letter-spacing: 1.5px !important;
-            margin-top: 0.5rem !important; margin-bottom: 0.3rem !important;
+            margin-top: 0.8rem !important; margin-bottom: 0.75rem !important;
             text-transform: uppercase !important;
             border-bottom: 1px solid rgba(255,255,255,0.05) !important;
-            padding-bottom: 3px !important;
+            padding-bottom: 4px !important;
         }
         /* ── SIDEBAR WIDGET GAP ──────────────────── */
         [data-testid="stSidebar"] div[data-testid="stVerticalBlock"] {
