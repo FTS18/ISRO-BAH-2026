@@ -74,22 +74,32 @@ The spatial forecast engine (`src/spatial_predictions.py`) avoids compounding au
 ### Layer 1: PyTorch Spatio-Temporal ConvLSTM Anomaly Model
 * **Architecture:** Swaps standard matrix multiplications in LSTM cells with 2D convolutions (kernel size 3x3, padding 1) to capture spatial correlations. Configured with 2 ConvLSTM layers (64 and 32 hidden dimensions).
 * **Tensor Configuration:** Inputs are mapped as 5D tensors of shape:
-  $$\text{Input Shape} = [B, T, C, H, W] = [\text{Batch}, 10 \text{ days}, 1 \text{ channel}, 129 \text{ lat}, 135 \text{ lon}]$$
+
+$$\text{Input Shape} = [B, T, C, H, W] = [\text{Batch}, 10 \text{ days}, 1 \text{ channel}, 129 \text{ lat}, 135 \text{ lon}]$$
+
 * **Anomaly-Space Mapping:** Rather than predicting absolute values (which leads to severe dampening), the network predicts anomalies relative to daily climatological means.
   * **Rainfall Anomaly Scaling:** Log-transformed to handle extreme events:
-    $$y = \text{sign}(x) \cdot \frac{\log(1 + |x|)}{3.0}$$
+
+$$y = \text{sign}(x) \cdot \frac{\log(1 + |x|)}{3.0}$$
+
   * **Temperature Anomaly Scaling:** Standard-scaled:
-    $$y = \frac{x}{10.0}$$
+
+$$y = \frac{x}{10.0}$$
+
 * **Stochastic Uncertainty Estimation:** Implements Monte Carlo (MC) Dropout during testing. The model performs multiple stochastic forward passes ($N=5$) with active dropout layers to generate standard deviation grids representing forecast confidence bounds ($\pm1\sigma$).
 
 ### Layer 2: Daily Climatological Reanalysis Atlas
 * Computes daily climatology profiles by grouping historical grid observations (2015-2023) by day-of-year:
-  $$\text{Climatology}(m, d) = \frac{1}{Y} \sum_{y=1}^{Y} \text{Observation}(y, m, d)$$
+
+$$\text{Climatology}(m, d) = \frac{1}{Y} \sum_{y=1}^{Y} \text{Observation}(y, m, d)$$
+
 * Serves as a physical reference baseline to bound the neural network's predictions at longer horizons.
 
 ### Layer 3: NOAA CPC Spatial Analog Selection
 * Identifies the three most spatially-similar historical 30-day windows by calculating the Pearson correlation coefficient ($r$) across valid (non-NaN) grid cells:
-  $$r = \frac{\sum (X_i - \bar{X})(Y_i - \bar{Y})}{\sqrt{\sum (X_i - \bar{X})^2 \sum (Y_i - \bar{Y})^2}}$$
+
+$$r = \frac{\sum (X_i - \bar{X})(Y_i - \bar{Y})}{\sqrt{\sum (X_i - \bar{X})^2 \sum (Y_i - \bar{Y})^2}}$$
+
 * Yields the top 3 analog years and extracts their subsequent actual trajectories (Day +1 to Day +7) to form a physical analog ensemble.
 
 ### Layer 4: Exponential Blending Schedule
@@ -98,7 +108,8 @@ The spatial forecast engine (`src/spatial_predictions.py`) avoids compounding au
 
 ### Layer 5: Mean Bias Correction (MBC)
 * Calculates the spatial mean ratio of the climatological grid to the blended grid, applying the scaling factor to adjust regional biases:
-  $$\text{CorrectedGrid} = \text{BlendedGrid} \cdot \left( \frac{\text{Mean}(\text{ClimGrid})}{\text{Mean}(\text{BlendedGrid})} \right)$$
+
+$$\text{CorrectedGrid} = \text{BlendedGrid} \cdot \left( \frac{\text{Mean}(\text{ClimGrid})}{\text{Mean}(\text{BlendedGrid})} \right)$$
 
 ---
 
@@ -109,22 +120,29 @@ The engine (`src/climate_indices.py`) evaluates real-time data to derive high-le
 ### 1. WMO Standardized Precipitation Index (SPI-30 & SPI-90)
 * Measures meteorological drought and moisture surplus on 30-day and 90-day scales.
 * Fits a two-parameter Gamma probability density function to the historical cumulative rainfall:
-  $$g(x) = \frac{1}{\beta^\alpha \Gamma(\alpha)} x^{\alpha - 1} e^{-x/\beta}$$
+
+$$g(x) = \frac{1}{\beta^\alpha \Gamma(\alpha)} x^{\alpha - 1} e^{-x/\beta}$$
+
   where $\alpha$ is the shape parameter, $\beta$ is the scale parameter, and $\Gamma(\alpha)$ is the gamma function.
 * Transforms the cumulative probability $G(x)$ to a standard normal distribution (mean 0, variance 1):
-  $$\text{SPI} = \Psi^{-1}(G(x))$$
+
+$$\text{SPI} = \Psi^{-1}(G(x))$$
+
 * **Drought Categories:** Values $\le -1.0$ indicate moderate drought, $\le -1.5$ severe, and $\le -2.0$ extreme drought.
 
 ### 2. FAO-56 Crop Water Stress Index (CWSI)
 * Estimates agricultural water stress by tracking actual vs. potential evapotranspiration ($ET$):
-  $$\text{CWSI} = 1.0 - \frac{ET_{\text{actual}}}{ET_{\text{potential}}}$$
+
+$$\text{CWSI} = 1.0 - \frac{ET_{\text{actual}}}{ET_{\text{potential}}}$$
+
   where $ET_{\text{potential}}$ is derived using the Penman-Monteith equation for reference crop evapotranspiration ($ET_0$).
 * Indicates crop stress on a scale from 0.0 (no stress) to 1.0 (water-deficit stress).
 
 ### 3. NWS Flash Flood Guidance (FFG)
 * Estimates the volume of rainfall (mm/day) required to initiate local flooding.
 * Calculates soil capacity limits by evaluating observed precipitation accumulations relative to the active soil moisture saturation percentage ($SM_{\text{pct}}$):
-  $$\text{FFG} = \text{Capacity}_{\text{max}} \cdot (1.0 - SM_{\text{pct}})$$
+
+$$\text{FFG} = \text{Capacity}_{\text{max}} \cdot (1.0 - SM_{\text{pct}})$$
 
 ### 4. Monsoon Onset and Northward Advance Tracker
 * Evaluates waypoints using the IMD criteria: at least 5 consecutive days where the spatial mean daily rainfall over the waypoint exceeds $2.5\text{ mm/day}$, commencing after the earliest historical onset window.
@@ -166,10 +184,14 @@ To evaluate forecast reliability, the platform implements holdout validation usi
 ### 1. Brier Score and Brier Skill Score (BSS)
 Evaluates the accuracy of probabilistic heavy rainfall forecasts ($>35\text{ mm/day}$):
 * **Brier Score (BS):** Measures the mean squared error of probabilistic predictions:
-  $$\text{BS} = \frac{1}{N} \sum_{n=1}^{N} (p_n - o_n)^2$$
+
+$$\text{BS} = \frac{1}{N} \sum_{n=1}^{N} (p_n - o_n)^2$$
+
   where $p_n$ is the forecasted probability and $o_n$ is the binary observation (1 if $>35\text{ mm}$, else 0).
 * **Brier Skill Score (BSS):** Measures the relative improvement over climatological forecasts:
-  $$\text{BSS} = 1.0 - \frac{\text{BS}_{\text{forecast}}}{\text{BS}_{\text{climatology}}}$$
+
+$$\text{BSS} = 1.0 - \frac{\text{BS}_{\text{forecast}}}{\text{BS}_{\text{climatology}}}$$
+
   where the climatology score $\text{BS}_{\text{climatology}}$ is calculated by setting $p_n$ to the long-term historical probability of exceedance. A BSS $> 0$ indicates the model out-performs climatological probability.
 
 ### 2. Reliability Calibration Curves
@@ -180,8 +202,10 @@ To resolve mathematical errors when computing verification statistics between gr
 * Ground-based rainfall data operates on a $0.25^\circ$ spacing (yielding $129 \times 135$ grids).
 * Temperature observations are formatted on a $1.0^\circ$ spacing (yielding $31 \times 31$ grids).
 * **Grid Slicing Alignments:** The validation engine dynamically resolves sub-slices by mapping matching latitude and longitude index boundaries:
-  $$\text{Index}_{\text{start}} = \text{argmin}(|\text{Coords}_{\text{all}} - \text{Coords}_{\text{target}}|)$$
-  This ensures target holdout validation grids and forecast arrays match dimensions exactly, preventing shape broadcasting crashes during metric computations.
+
+$$\text{Index}_{\text{start}} = \text{argmin}(|\text{Coords}_{\text{all}} - \text{Coords}_{\text{target}}|)$$
+
+This ensures target holdout validation grids and forecast arrays match dimensions exactly, preventing shape broadcasting crashes during metric computations.
 
 ---
 
