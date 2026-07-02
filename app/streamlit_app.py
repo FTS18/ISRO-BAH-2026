@@ -148,16 +148,26 @@ st.markdown("""
             border-right: 1px solid rgba(255,255,255,0.06) !important;
         }
         [data-testid="stSidebarUserContent"] {
-            padding: 1.2rem 0.85rem 4rem 0.85rem !important;
+            padding: 0.8rem 0.75rem 1rem 0.75rem !important;
         }
         [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2,
         [data-testid="stSidebar"] h3 {
-            font-size: 0.65rem !important; font-weight: 700 !important;
+            font-size: 0.58rem !important; font-weight: 700 !important;
             color: #475569 !important; letter-spacing: 1.5px !important;
-            margin-top: 1.4rem !important; margin-bottom: 0.5rem !important;
+            margin-top: 0.7rem !important; margin-bottom: 0.3rem !important;
             text-transform: uppercase !important;
             border-bottom: 1px solid rgba(255,255,255,0.05) !important;
-            padding-bottom: 4px !important;
+            padding-bottom: 3px !important;
+        }
+        /* ── SIDEBAR WIDGET GAP ──────────────────── */
+        [data-testid=\"stSidebar\"] div[data-testid=\"stVerticalBlock\"] {
+            gap: 0.25rem !important;
+        }
+        [data-testid=\"stSidebar\"] div[data-testid=\"stCheckbox\"],
+        [data-testid=\"stSidebar\"] div[data-testid=\"stRadio\"],
+        [data-testid=\"stSidebar\"] div[data-testid=\"stSelectbox\"] {
+            margin-bottom: 0 !important;
+            padding-bottom: 0 !important;
         }
         /* Sidebar nav radio */
         [data-testid="stSidebar"] div[role="radiogroup"] {
@@ -555,6 +565,8 @@ teleconn_data = load_teleconnection_data()
 monsoon_onset_data = load_monsoon_onset_data_v3(None)
 
 # Sidebar Navigation & Configuration
+_SDIV = "<hr style='border:none;border-top:1px solid rgba(255,255,255,0.05);margin:6px 0 4px 0;'>"
+
 with st.sidebar:
     st.header("Navigation")
     page = st.radio(
@@ -568,37 +580,32 @@ with st.sidebar:
          "About"],
         label_visibility="collapsed"
     )
-    
-    st.markdown("---")
-    st.header("Simulation Configuration")
-    # List all states and UTs with "All India" selected by default
+    st.markdown(_SDIV, unsafe_allow_html=True)
+    st.header("Region")
     region_options = list(PILOT_REGIONS.keys())
     region_options.remove("All India")
     region_options.sort()
     region_options.insert(0, "All India")
-    
     pilot_region = st.selectbox(
         "Select Pilot Region:",
         options=region_options,
-        index=0
+        index=0,
+        label_visibility="collapsed"
     )
-        
-    st.markdown("---")
-    st.header("Visual Aesthetics")
+    st.markdown(_SDIV, unsafe_allow_html=True)
+    st.header("Map Style")
     map_style = st.radio(
         "Map Rendering Mode:",
-        ["WebGL 3D Engine (PyDeck)", "High-Resolution Pixel Grid (Lossless)", "Smooth Gradient Overlay (Premium)"]
+        ["WebGL 3D Engine (PyDeck)", "High-Resolution Pixel Grid (Lossless)", "Smooth Gradient Overlay (Premium)"],
+        label_visibility="collapsed"
     )
-    
-    st.markdown("---")
-    st.header("Data Assimilation Status")
-    # Live data timestamp — shows judges the system is continuously evolving
-    _last_dates = {}
+    st.markdown(_SDIV, unsafe_allow_html=True)
+    st.header("Assimilation Status")
     _data_dir = os.path.join(os.path.dirname(__file__), '..', 'data', 'processed')
     for _label, _fname in [
-        ("IMD Rainfall",     "IMD_Gridded_Rainfall_0.25_Real_v4.nc"),
-        ("IMD Max Temp",     "IMD_Gridded_MaxTemp_1.0_Real_v3.nc"),
-        ("INSAT SST",        "MOSDAC_INSAT_SST_Real.nc"),
+        ("IMD Rainfall",  "IMD_Gridded_Rainfall_0.25_Real_v4.nc"),
+        ("IMD Max Temp",  "IMD_Gridded_MaxTemp_1.0_Real_v3.nc"),
+        ("INSAT SST",     "MOSDAC_INSAT_SST_Real.nc"),
     ]:
         _fpath = os.path.join(_data_dir, _fname)
         if os.path.exists(_fpath):
@@ -610,44 +617,38 @@ with st.sidebar:
                 _age_str = f"{_age}d ago" if _age > 0 else "Today"
                 st.markdown(
                     f"<div style='background:#0D1829;border:1px solid rgba(255,255,255,0.07);"
-                    f"border-radius:2px;padding:6px 10px;margin-bottom:4px;'>"
-                    f"<span style='font-size:0.62rem;font-weight:600;color:#475569;"
-                    f"letter-spacing:0.9px;text-transform:uppercase;'>{_label}</span><br>"
-                    f"<span style='font-size:0.72rem;color:#CBD5E1;font-family:monospace;'>"
-                    f"{_d.strftime('%Y-%m-%d')}</span>"
-                    f"<span style='font-size:0.62rem;color:#475569;'>&nbsp;&nbsp;{_age_str}</span>"
+                    f"border-radius:2px;padding:4px 8px;margin-bottom:3px;'>"
+                    f"<span style='font-size:0.58rem;font-weight:600;color:#475569;"
+                    f"letter-spacing:0.9px;text-transform:uppercase;'>{_label}</span>"
+                    f"<span style='font-size:0.68rem;color:#CBD5E1;font-family:monospace;float:right;'>"
+                    f"{_d.strftime('%m-%d')}</span><br>"
+                    f"<span style='font-size:0.6rem;color:#475569;'>{_age_str}</span>"
                     f"</div>",
                     unsafe_allow_html=True
                 )
             except Exception:
                 st.markdown(
                     f"<div style='background:#0D1829;border:1px solid rgba(255,255,255,0.07);"
-                    f"border-radius:2px;padding:6px 10px;margin-bottom:4px;'>"
-                    f"<span style='font-size:0.62rem;font-weight:600;color:#475569;"
-                    f"letter-spacing:0.9px;text-transform:uppercase;'>{_label}</span><br>"
-                    f"<span style='font-size:0.72rem;color:#64748B;'>NOT LOADED</span>"
+                    f"border-radius:2px;padding:4px 8px;margin-bottom:3px;'>"
+                    f"<span style='font-size:0.58rem;color:#475569;text-transform:uppercase;'>{_label}</span>"
+                    f"<span style='font-size:0.6rem;color:#64748B;float:right;'>N/A</span>"
                     f"</div>",
                     unsafe_allow_html=True
                 )
         else:
             st.markdown(
                 f"<div style='background:#0D1829;border:1px solid rgba(255,255,255,0.07);"
-                f"border-radius:2px;padding:6px 10px;margin-bottom:4px;'>"
-                f"<span style='font-size:0.62rem;font-weight:600;color:#475569;"
-                f"letter-spacing:0.9px;text-transform:uppercase;'>{_label}</span><br>"
-                f"<span style='font-size:0.72rem;color:#64748B;'>PENDING SYNC</span>"
+                f"border-radius:2px;padding:4px 8px;margin-bottom:3px;'>"
+                f"<span style='font-size:0.58rem;color:#475569;text-transform:uppercase;'>{_label}</span>"
+                f"<span style='font-size:0.6rem;color:#64748B;float:right;'>PENDING</span>"
                 f"</div>",
                 unsafe_allow_html=True
             )
-
-# placeholder — header rendered after data is computed
-
-with st.sidebar:
-    st.markdown("---")
-    st.header("Multi-Variable Overlays")
-    overlay_wind = st.checkbox("Overlay Geostrophic Wind Vectors", value=False, help="Simulates physical wind flow using 90° rotated spatial temperature/pressure gradients.")
+    st.markdown(_SDIV, unsafe_allow_html=True)
+    st.header("Overlays")
+    overlay_wind = st.checkbox("Geostrophic Wind Vectors", value=False, help="Simulates physical wind flow using 90 deg rotated spatial temperature/pressure gradients.")
     if "WebGL" in map_style:
-        extrusion = st.checkbox("Enable 3D Elevation / Extrusion", value=True)
+        extrusion = st.checkbox("3D Elevation / Extrusion", value=True)
 
 if ds_rain is None:
     st.stop()
