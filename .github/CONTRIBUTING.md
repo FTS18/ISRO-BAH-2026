@@ -27,7 +27,7 @@ pip install -r requirements.txt
 To maintain clean code in the repository, all contributions must adhere to the following standards:
 
 ### 1. Document Integrity and Emojis
-* **Documentation Formatting:** Do not include emojis (`📋`, `🎯`, `🧠`, etc.) in any Markdown documentation files. Use standard, structured, high-contrast headings.
+* **Documentation Formatting:** Do not include emojis in any Markdown documentation files. Use standard, structured, high-contrast headings.
 * **Inline Comments:** Retain all existing code comments and docstrings. Document new functions with Google-style docstrings, detailing parameter types and dimensions (e.g. specifying input grid sizes like 129x135).
 
 ### 2. Code Styling

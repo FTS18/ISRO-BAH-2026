@@ -1166,22 +1166,22 @@ if page == "Dashboard":
         with d_col1:
             st.markdown(
                 "<div style='background:#1e293b;border:1px solid #3b82f6;border-radius:8px;padding:8px 12px;margin-bottom:10px;'>"
-                "<span style='font-size:0.65rem;color:#3b82f6;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;'>🌧 ATMOSPHERIC DOMAIN</span><br>"
-                "<span style='font-size:0.7rem;color:#94a3b8;'>IMD Rainfall · Max/Min Temp · Wind Vectors · SPI-30/90</span>"
+                "<span style='font-size:0.65rem;color:#3b82f6;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;'>ATMOSPHERIC DOMAIN</span><br>"
+                "<span style='font-size:0.7rem;color:#94a3b8;'>IMD Rainfall - Max/Min Temp - Wind Vectors - SPI-30/90</span>"
                 "</div>", unsafe_allow_html=True
             )
         with d_col2:
             st.markdown(
                 "<div style='background:#1e293b;border:1px solid #06b6d4;border-radius:8px;padding:8px 12px;margin-bottom:10px;'>"
-                "<span style='font-size:0.65rem;color:#06b6d4;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;'>🌊 OCEANIC DOMAIN</span><br>"
-                "<span style='font-size:0.7rem;color:#94a3b8;'>INSAT-3D SST · MOSDAC INSAT Rainfall · IOD · ENSO</span>"
+                "<span style='font-size:0.65rem;color:#06b6d4;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;'>OCEANIC DOMAIN</span><br>"
+                "<span style='font-size:0.7rem;color:#94a3b8;'>INSAT-3D SST - MOSDAC INSAT Rainfall - IOD - ENSO</span>"
                 "</div>", unsafe_allow_html=True
             )
         with d_col3:
             st.markdown(
                 "<div style='background:#1e293b;border:1px solid #22c55e;border-radius:8px;padding:8px 12px;margin-bottom:10px;'>"
-                "<span style='font-size:0.65rem;color:#22c55e;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;'>🌱 LAND SURFACE DOMAIN</span><br>"
-                "<span style='font-size:0.7rem;color:#94a3b8;'>INSAT LST · NICES Soil Moisture · FAO-56 CWSI · Basin Masks</span>"
+                "<span style='font-size:0.65rem;color:#22c55e;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;'>LAND SURFACE DOMAIN</span><br>"
+                "<span style='font-size:0.7rem;color:#94a3b8;'>INSAT LST - NICES Soil Moisture - FAO-56 CWSI - Basin Masks</span>"
                 "</div>", unsafe_allow_html=True
             )
 
