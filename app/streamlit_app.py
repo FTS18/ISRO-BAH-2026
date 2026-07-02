@@ -148,24 +148,34 @@ st.markdown("""
             border-right: 1px solid rgba(255,255,255,0.06) !important;
         }
         [data-testid="stSidebarUserContent"] {
-            padding: 0.8rem 0.75rem 1rem 0.75rem !important;
+            padding: 0px 0.75rem 1rem 0.75rem !important;
+            margin-top: 0px !important;
+        }
+        [data-testid="stSidebarHeader"] {
+            padding-top: 0px !important;
+            padding-bottom: 0px !important;
+            min-height: 0px !important;
         }
         [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2,
         [data-testid="stSidebar"] h3 {
             font-size: 0.58rem !important; font-weight: 700 !important;
             color: #475569 !important; letter-spacing: 1.5px !important;
-            margin-top: 0.7rem !important; margin-bottom: 0.3rem !important;
+            margin-top: 0.5rem !important; margin-bottom: 0.3rem !important;
             text-transform: uppercase !important;
             border-bottom: 1px solid rgba(255,255,255,0.05) !important;
             padding-bottom: 3px !important;
         }
         /* ── SIDEBAR WIDGET GAP ──────────────────── */
-        [data-testid=\"stSidebar\"] div[data-testid=\"stVerticalBlock\"] {
+        [data-testid="stSidebar"] div[data-testid="stVerticalBlock"] {
             gap: 0.25rem !important;
         }
-        [data-testid=\"stSidebar\"] div[data-testid=\"stCheckbox\"],
-        [data-testid=\"stSidebar\"] div[data-testid=\"stRadio\"],
-        [data-testid=\"stSidebar\"] div[data-testid=\"stSelectbox\"] {
+        [data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div:first-child {
+            margin-top: 0px !important;
+            padding-top: 0px !important;
+        }
+        [data-testid="stSidebar"] div[data-testid="stCheckbox"],
+        [data-testid="stSidebar"] div[data-testid="stRadio"],
+        [data-testid="stSidebar"] div[data-testid="stSelectbox"] {
             margin-bottom: 0 !important;
             padding-bottom: 0 !important;
         }
