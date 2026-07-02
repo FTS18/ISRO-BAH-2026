@@ -609,20 +609,34 @@ with st.sidebar:
                 _age = (datetime.utcnow().date() - _d).days
                 _age_str = f"{_age}d ago" if _age > 0 else "Today"
                 st.markdown(
-                    f"<div style='font-size:0.68rem;color:#64748B;line-height:1.7;'>"
-                    f"<span style='color:#94A3B8;font-weight:600;'>{_label}</span><br>"
-                    f"<span style='color:#22d3ee;font-family:monospace;'>{_d.strftime('%Y-%m-%d')}</span>"
-                    f"<span style='color:#475569;'> &nbsp;({_age_str})</span></div>",
+                    f"<div style='background:#0D1829;border:1px solid rgba(255,255,255,0.07);"
+                    f"border-radius:2px;padding:6px 10px;margin-bottom:4px;'>"
+                    f"<span style='font-size:0.62rem;font-weight:600;color:#475569;"
+                    f"letter-spacing:0.9px;text-transform:uppercase;'>{_label}</span><br>"
+                    f"<span style='font-size:0.72rem;color:#CBD5E1;font-family:monospace;'>"
+                    f"{_d.strftime('%Y-%m-%d')}</span>"
+                    f"<span style='font-size:0.62rem;color:#475569;'>&nbsp;&nbsp;{_age_str}</span>"
+                    f"</div>",
                     unsafe_allow_html=True
                 )
             except Exception:
                 st.markdown(
-                    f"<div style='font-size:0.68rem;color:#475569;'>{_label}: <span style='color:#ef4444;'>NOT LOADED</span></div>",
+                    f"<div style='background:#0D1829;border:1px solid rgba(255,255,255,0.07);"
+                    f"border-radius:2px;padding:6px 10px;margin-bottom:4px;'>"
+                    f"<span style='font-size:0.62rem;font-weight:600;color:#475569;"
+                    f"letter-spacing:0.9px;text-transform:uppercase;'>{_label}</span><br>"
+                    f"<span style='font-size:0.72rem;color:#64748B;'>NOT LOADED</span>"
+                    f"</div>",
                     unsafe_allow_html=True
                 )
         else:
             st.markdown(
-                f"<div style='font-size:0.68rem;color:#475569;'>{_label}: <span style='color:#f59e0b;'>PENDING SYNC</span></div>",
+                f"<div style='background:#0D1829;border:1px solid rgba(255,255,255,0.07);"
+                f"border-radius:2px;padding:6px 10px;margin-bottom:4px;'>"
+                f"<span style='font-size:0.62rem;font-weight:600;color:#475569;"
+                f"letter-spacing:0.9px;text-transform:uppercase;'>{_label}</span><br>"
+                f"<span style='font-size:0.72rem;color:#64748B;'>PENDING SYNC</span>"
+                f"</div>",
                 unsafe_allow_html=True
             )
 
@@ -1165,23 +1179,32 @@ if page == "Dashboard":
         d_col1, d_col2, d_col3 = st.columns(3)
         with d_col1:
             st.markdown(
-                "<div style='background:#1e293b;border:1px solid #3b82f6;border-radius:8px;padding:8px 12px;margin-bottom:10px;'>"
-                "<span style='font-size:0.65rem;color:#3b82f6;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;'>ATMOSPHERIC DOMAIN</span><br>"
-                "<span style='font-size:0.7rem;color:#94a3b8;'>IMD Rainfall - Max/Min Temp - Wind Vectors - SPI-30/90</span>"
+                "<div style='background:#0D1829;border:1px solid rgba(255,255,255,0.07);"
+                "border-left:2px solid #FF6B00;border-radius:2px;"
+                "padding:8px 12px;margin-bottom:10px;'>"
+                "<span style='font-size:0.62rem;color:#64748B;font-weight:600;"
+                "letter-spacing:1px;text-transform:uppercase;'>Atmospheric Domain</span><br>"
+                "<span style='font-size:0.72rem;color:#94A3B8;'>IMD Rainfall &mdash; Max/Min Temp &mdash; Wind Vectors &mdash; SPI-30/90</span>"
                 "</div>", unsafe_allow_html=True
             )
         with d_col2:
             st.markdown(
-                "<div style='background:#1e293b;border:1px solid #06b6d4;border-radius:8px;padding:8px 12px;margin-bottom:10px;'>"
-                "<span style='font-size:0.65rem;color:#06b6d4;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;'>OCEANIC DOMAIN</span><br>"
-                "<span style='font-size:0.7rem;color:#94a3b8;'>INSAT-3D SST - MOSDAC INSAT Rainfall - IOD - ENSO</span>"
+                "<div style='background:#0D1829;border:1px solid rgba(255,255,255,0.07);"
+                "border-left:2px solid #FF6B00;border-radius:2px;"
+                "padding:8px 12px;margin-bottom:10px;'>"
+                "<span style='font-size:0.62rem;color:#64748B;font-weight:600;"
+                "letter-spacing:1px;text-transform:uppercase;'>Oceanic Domain</span><br>"
+                "<span style='font-size:0.72rem;color:#94A3B8;'>INSAT-3D SST &mdash; MOSDAC INSAT Rainfall &mdash; IOD &mdash; ENSO</span>"
                 "</div>", unsafe_allow_html=True
             )
         with d_col3:
             st.markdown(
-                "<div style='background:#1e293b;border:1px solid #22c55e;border-radius:8px;padding:8px 12px;margin-bottom:10px;'>"
-                "<span style='font-size:0.65rem;color:#22c55e;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;'>LAND SURFACE DOMAIN</span><br>"
-                "<span style='font-size:0.7rem;color:#94a3b8;'>INSAT LST - NICES Soil Moisture - FAO-56 CWSI - Basin Masks</span>"
+                "<div style='background:#0D1829;border:1px solid rgba(255,255,255,0.07);"
+                "border-left:2px solid #FF6B00;border-radius:2px;"
+                "padding:8px 12px;margin-bottom:10px;'>"
+                "<span style='font-size:0.62rem;color:#64748B;font-weight:600;"
+                "letter-spacing:1px;text-transform:uppercase;'>Land Surface Domain</span><br>"
+                "<span style='font-size:0.72rem;color:#94A3B8;'>INSAT LST &mdash; NICES Soil Moisture &mdash; FAO-56 CWSI &mdash; Basin Masks</span>"
                 "</div>", unsafe_allow_html=True
             )
 
