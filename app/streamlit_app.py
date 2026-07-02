@@ -671,14 +671,70 @@ if ds_rain is None:
     st.stop()
 
 
+def render_scale_bar(val_name, colorscale, vmin, vmax):
+    scales = {
+        "blues": ["#eff3ff", "#bdd7e7", "#6baed6", "#3182bd", "#08519c"],
+        "blues_r": ["#08519c", "#3182bd", "#6baed6", "#bdd7e7", "#eff3ff"],
+        "teal": ["#e0f2f1", "#80cbc4", "#26a69a", "#00897b", "#004d40"],
+        "tealgrn": ["#f0fdf4", "#bbf7d0", "#86efac", "#4ade80", "#22c55e", "#15803d"],
+        "ylorrd": ["#ffffcc", "#ffcccb", "#ff9900", "#ff3300", "#990000"],
+        "viridis": ["#440154", "#3b528b", "#21918c", "#5ec962", "#fde725"],
+        "magma": ["#000004", "#3b0f70", "#8c2981", "#fe9f6d", "#fcfdbf"],
+        "jet": ["#00007f", "#007fff", "#7fff7f", "#ff7f00", "#7f0000"],
+        "brbg": ["#8c510a", "#dfc27d", "#f5f5f5", "#80cdc1", "#01665e"],
+        "rdbu": ["#ca0020", "#f4a582", "#f7f7f7", "#92c5de", "#0571b0"],
+        "oranges": ["#fff5eb", "#fdd0a2", "#fdae6b", "#f16913", "#d94801", "#8c2d04"],
+        "reds": ["#fff5f0", "#fee0d2", "#fcbba1", "#fc9272", "#fb6a4a", "#ef3b2c", "#cb181d", "#99000d"],
+        "greens": ["#f7fcf5", "#e5f5e0", "#c7e9b4", "#a1d99b", "#74c476", "#41ab5d", "#238b45", "#005a32"],
+        "turbo": ["#30123b", "#4776e6", "#10e0aa", "#e2e018", "#f8430a", "#7a0403"],
+        "rainbow": ["#8b0000", "#ff0000", "#ff7f00", "#ffff00", "#00ff00", "#0000ff", "#4b0082", "#9400d3"]
+    }
+    
+    c_key = str(colorscale).lower()
+    cols = None
+    for k, v in scales.items():
+        if k in c_key:
+            cols = v
+            break
+            
+    if cols is None:
+        cols = scales["turbo"]
+        
+    gradient_str = ", ".join(cols)
+    
+    st.markdown(
+        f"""
+        <div style="display:flex; flex-direction:column; background:#0D1829; border:1px solid rgba(255,255,255,0.07); border-radius:2px; padding:6px 12px; margin-top:-8px; margin-bottom:12px;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:4px; align-items:center;">
+                <span style="font-size:0.58rem; color:#64748B; font-weight:600; letter-spacing:1px; text-transform:uppercase;">{val_name} SCALE</span>
+                <span style="font-size:0.58rem; color:#64748B; font-weight:600; font-family:monospace; letter-spacing:0.5px;">MIN: {vmin:.1f} &nbsp;|&nbsp; MAX: {vmax:.1f}</span>
+            </div>
+            <div style="height:6px; border-radius:1px; background: linear-gradient(90deg, {gradient_str});"></div>
+            <div style="display:flex; justify-content:space-between; margin-top:3px; font-size:0.64rem; font-family:monospace; color:#CBD5E1;">
+                <span>{vmin:.1f}</span>
+                <span>{(vmin+vmax)/2:.1f}</span>
+                <span>{vmax:.1f}</span>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+
 def render_map(fig, use_container_width=True, on_select=None, key=None):
     if isinstance(fig, pdk.Deck):
-        return st.pydeck_chart(fig, use_container_width=use_container_width)
+        chart_ret = st.pydeck_chart(fig, use_container_width=use_container_width)
     else:
         if on_select:
-            return st.plotly_chart(fig, use_container_width=use_container_width, on_select=on_select, key=key)
+            chart_ret = st.plotly_chart(fig, use_container_width=use_container_width, on_select=on_select, key=key)
         else:
-            return st.plotly_chart(fig, use_container_width=use_container_width, key=key)
+            chart_ret = st.plotly_chart(fig, use_container_width=use_container_width, key=key)
+            
+    # Render custom horizontal color scale bar
+    if hasattr(fig, "vmin") and hasattr(fig, "vmax"):
+        render_scale_bar(fig.val_name, fig.colorscale, fig.vmin, fig.vmax)
+        
+    return chart_ret
 
 def plot_spatial_map(data_array, title, colorscale, val_name="Value", zmin=None, zmax=None, plot_wind=False):
     df = data_array.to_dataframe().reset_index()
@@ -690,6 +746,15 @@ def plot_spatial_map(data_array, title, colorscale, val_name="Value", zmin=None,
     # Filter out absolute zero rainfall for cleaner storm cloud visualization
     if "Rain" in val_name or "rain" in val_col:
         df = df[df[val_col] > 0.1]
+
+    # Calculate scale range min/max
+    if not df.empty:
+        vmin = zmin if zmin is not None else float(df[val_col].min())
+        vmax = zmax if zmax is not None else float(df[val_col].max())
+    else:
+        vmin = zmin if zmin is not None else 0.0
+        vmax = zmax if zmax is not None else 1.0
+    if vmin == vmax: vmax += 1e-5
 
     if pilot_region == "All India":
         center_lat = 21.0
@@ -708,10 +773,6 @@ def plot_spatial_map(data_array, title, colorscale, val_name="Value", zmin=None,
         if cmap_name in mpl.colormaps: cmap = mpl.colormaps[cmap_name]
         elif cmap_name.lower() in mpl.colormaps: cmap = mpl.colormaps[cmap_name.lower()]
         else: cmap = mpl.colormaps['turbo']
-        
-        vmin = zmin if zmin is not None else df[val_col].min()
-        vmax = zmax if zmax is not None else df[val_col].max()
-        if vmin == vmax: vmax += 1e-5
         
         def get_color(val):
             if pd.isna(val): return [0, 0, 0, 0]
@@ -756,6 +817,10 @@ def plot_spatial_map(data_array, title, colorscale, val_name="Value", zmin=None,
             map_style="https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
             tooltip={"text": f"{val_name}: {{{val_col}}}"}
         )
+        fig.vmin = float(vmin)
+        fig.vmax = float(vmax)
+        fig.colorscale = colorscale
+        fig.val_name = val_name
         return fig
         
     elif "Smooth" in map_style and is_rain:
@@ -848,13 +913,7 @@ def plot_spatial_map(data_array, title, colorscale, val_name="Value", zmin=None,
             }]
         )
         
-        # Dummy trace for colorbar
-        fig.add_trace(go.Scattermap(
-            lat=[center_lat, center_lat], lon=[center_lon, center_lon],
-            marker=dict(size=0, color=[vmin, vmax], colorscale=colorscale, showscale=True, 
-                        colorbar=dict(title=val_name, orientation="h", y=-0.15, x=0.5, len=0.8, thickness=10, outlinewidth=0)),
-            hoverinfo="none", showlegend=False
-        ))
+        # Removed dummy trace for colorbar as custom CSS scale is used instead
 
     else:
         scatter_opacity = 0.85
@@ -868,13 +927,7 @@ def plot_spatial_map(data_array, title, colorscale, val_name="Value", zmin=None,
                 colorscale=colorscale,
                 cmin=zmin, cmax=zmax,
                 opacity=scatter_opacity,
-                colorbar=dict(
-                    title=dict(text=val_name, font=dict(color="#F8FAFC", size=11)),
-                    orientation="h",
-                    y=-0.15, x=0.5, len=0.8, thickness=10,
-                    tickfont=dict(color="#F8FAFC", size=10),
-                    bgcolor="rgba(0,0,0,0)", outlinewidth=0
-                )
+                showscale=False
             ),
             hovertemplate=f"%{{lat:.2f}}°N, %{{lon:.2f}}°E<br>{val_name}: %{{marker.color:.2f}}<extra></extra>"
         ))
@@ -934,17 +987,15 @@ def plot_spatial_map(data_array, title, colorscale, val_name="Value", zmin=None,
         except Exception:
             pass
 
-    
     fig.update_layout(
         paper_bgcolor="#111827", plot_bgcolor="#0B0F19", font=dict(color="#F8FAFC"),
-        height=750, margin=dict(l=0, r=0, t=10, b=0),
-        coloraxis_colorbar=dict(
-            title=dict(text=val_name, font=dict(color="#F8FAFC", size=11)),
-            bgcolor="rgba(0,0,0,0)", tickfont=dict(color="#F8FAFC", size=10), 
-            orientation="h", y=-0.15, x=0.5, len=0.8, thickness=10, outlinewidth=0
-        )
+        height=750, margin=dict(l=0, r=0, t=10, b=0)
     )
 
+    fig.vmin = float(vmin)
+    fig.vmax = float(vmax)
+    fig.colorscale = colorscale
+    fig.val_name = val_name
     return fig
 
 def plot_spatial_forecast_animation(predictions, base_grid, c_scale, val_name="Value", zmin=None, zmax=None, pilot_region="Karnataka"):
@@ -1003,13 +1054,11 @@ def plot_spatial_forecast_animation(predictions, base_grid, c_scale, val_name="V
         margin=dict(l=0, r=0, t=10, b=0),
         map=dict(
             style="dark"
-        ),
-        coloraxis_colorbar=dict(
-            title=dict(text=val_name, font=dict(color="#F8FAFC", size=11)),
-            bgcolor="rgba(0,0,0,0)", tickfont=dict(color="#F8FAFC", size=10),
-            orientation="h", y=-0.15, x=0.5, len=0.8, thickness=10, outlinewidth=0
         )
     )
+    
+    # Disable Plotly's default colorbar to avoid double scale bars
+    fig.update_coloraxes(showscale=False)
     
     # Adjust marker size based on scale
     fig.update_traces(
@@ -1017,6 +1066,16 @@ def plot_spatial_forecast_animation(predictions, base_grid, c_scale, val_name="V
             size=4.5 if pilot_region == "All India" else 9.0
         )
     )
+    
+    # Attach properties for custom horizontal scale bar
+    vmin = float(zmin) if zmin is not None else float(df_all[val_name].min())
+    vmax = float(zmax) if zmax is not None else float(df_all[val_name].max())
+    if vmin == vmax: vmax += 1e-5
+    
+    fig.vmin = vmin
+    fig.vmax = vmax
+    fig.colorscale = c_scale
+    fig.val_name = val_name
     
     return fig
 
