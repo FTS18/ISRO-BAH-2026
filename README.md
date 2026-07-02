@@ -1,209 +1,164 @@
-#  AI-Powered Digital Twin of India's Climate (ISRO Problem Statement 5)
+# India Climate Digital Twin: 2D Spatiotemporal Geospatial Reanalysis and Prognostic Forecasting Platform
 
-##  Executive Summary & Problem Statement Alignment
-
-An advanced, high-fidelity **AI-Powered Digital Twin of India's Climate** developed for the ISRO Hackathon (Problem Statement 5). This dynamic virtual replica fuses heterogeneous multi-source datasets from Indian satellites (**MOSDAC INSAT**) and ground-based meteorological networks (**IMD Pune**) to simulate atmospheric and land-surface processes at high spatial and temporal resolutions.
-
-Directly aligning with ISRO's vision of leveraging space-based observations and artificial intelligence for societal benefit, this framework provides robust monitoring, short-term forecasting, and interactive "what-if" scenario analysis to support national priorities in climate resilience, disaster risk reduction, and agricultural security under the vision of **'Atmanirbhar Bharat'**.
-
-![AI-Powered Digital Twin of India Climate Workflow](assets/digital_twin_workflow.png)
+This repository houses the 2D Geospatial Reanalysis and Prognostic Forecasting Platform developed for ISRO Problem Statement 5. The platform assimilates space-based remote sensing datasets from geostationary satellites (MOSDAC INSAT-3D/3DR) and ground-based observations (India Meteorological Department - IMD Pune) to model atmospheric and land-surface processes at high spatial and temporal resolutions.
 
 ---
 
-##  Explicit Alignment with Evaluation Parameters
+## Architectural System Overview
 
-This repository is meticulously architected to achieve excellence across all 8 official ISRO evaluation parameters:
-
-1. **Problem Understanding & Clarity**: Focuses on high-resolution gridded analysis of rainfall (`0.25°`) and temperature (`1.0°`), establishing a concrete Proof of Concept (PoC) for the **Karnataka Pilot Region (Lat 11.5°-17.5° | Lon 73.5°-78.5°)**.
-2. **Data Usage & Pre-processing**: Implements robust automated binary decoding (`scripts/decode_imd_temp.py`) of real IMD gridded binary records (`.grd`), handling missing value masking (`99.9` / `-999.0` to `NaN`) and structuring into CF-compliant NetCDF4 (`.nc`) formats.
-3. **Model Development & Technical Approach**: Implements a highly advanced **Spatio-Temporal ConvLSTM Neural Network** (`src/models/pytorch_convlstm.py`) in PyTorch, engineered to capture 2D spatial features and temporal dynamics simultaneously.
-4. **Prediction Performance & Validation**: Integrates an automated validation module dynamically computing real **RMSE (Root Mean Square Error)** and **MAE (Mean Absolute Error)** against historical holdout observations.
-5. **Digital Twin Concept Implementation**: Fuses real ground truth and satellite observations into a singular dashboard capable of real-time evolution and what-if scenario testing.
-6. **Visualization & User Interface**: Features a premium, Swiss-minimalist dark space dashboard built on Streamlit and Plotly `go.Contour` geographic projections, eliminating blank maps and ensuring robust offline rendering.
-7. **Innovation & Creativity**: Incorporates interactive what-if sliders to simulate non-linear climate interactions (e.g., temperature spikes accelerating extreme monsoon rainfall events).
-8. **Presentation & Communication**: Clean modular structure, exhaustive documentation, and zero-crash fallback scaffolding for satellite data assimilation.
-
----
-
-##  Project Architecture & Directory Structure
+The system is split into three core layers: a data engineering and decoding pipeline, a hybrid deep-learning-statistical forecasting engine, and an interactive GIS dashboard.
 
 ```text
-ISRO--Climate-Visuals/
-├── .streamlit/
-│   └── config.toml              # Native ISRO Dark Space theme configuration
-├── app/
-│   └── streamlit_app.py         # Main Digital Twin Streamlit Dashboard
-├── checkpoints/
-│   ├── climate_twin_convlstm_final.pth  # Spatial rainfall weights
-│   └── climate_twin_convlstm_temp.pth   # Spatial temperature weights
-├── data/
-│   └── processed/               # Decoded CF-compliant NetCDF4 datasets (.nc)
-├── models/
-│   ├── max_temp_model.h5        # Max temp neural network model
-│   ├── min_temp_model.h5        # Min temp neural network model
-│   ├── rainfall_lstm_model.h5   # Rainfall LSTM model
-│   └── *.pkl                    # Normalization scalers
-├── scripts/
-│   ├── check_downloaded_data.py # Utility to check files
-│   ├── decode_imd_binary.py     # Binary daily rainfall decoder
-│   ├── decode_imd_temp.py       # Binary daily temperature decoder
-│   ├── download_and_decode_all_real.py  # Ingestion orchestration runner
-│   ├── download_multi_decade_imd.py     # Bulk historical downloader
-│   └── train_convlstm.py        # Active ConvLSTM model training script
-├── src/
-│   ├── api/
-│   │   └── main.py              # FastAPI Web API Gateway
-│   ├── models/
-│   │   └── pytorch_convlstm.py  # PyTorch Spatio-Temporal ConvLSTM architecture
-│   ├── climate_alerts.py        # Weather warning warning analysis engine
-│   ├── climate_copilot.py       # Conversational AI assistant
-│   ├── feature_engineering.py   # Math/cyclical features calculator
-│   ├── model_loader.py          # Unified model singleton loader
-│   ├── predictions.py           # Autoregressive predictions loop
-│   └── spatial_predictions.py   # Spatio-temporal gridded forecasting engine
-├── tests/
-│   └── test_integration.py      # Automated pipeline tests
-└── requirements.txt             # Python package dependencies
++-----------------------------------------------------------------------------------+
+|                                  DATA INGESTION                                   |
+|   IMD Binary Daily Grids (.grd)   |   MOSDAC INSAT-3D/3DR H5   |   WMS API Feeds   |
++-----------------------------------------------------------------------------------+
+                                          |
+                                          v
++-----------------------------------------------------------------------------------+
+|                                DATA PROCESSING                                    |
+|   CF-Compliant NetCDF4 (.nc) Compilation  |  Vector administrative masking (GeoJSON) |
++-----------------------------------------------------------------------------------+
+                                          |
+                                          v
++-----------------------------------------------------------------------------------+
+|                            FORECASTING & ANALYSIS ENGINE                          |
+|  PyTorch ConvLSTM Anomaly  |  NOAA CPC Spatial Analogs  |  WMO SPI / CWSI / FFG    |
++-----------------------------------------------------------------------------------+
+                                          |
+                                          v
++-----------------------------------------------------------------------------------+
+|                                  USER INTERFACE                                   |
+|  Streamlit Reanalysis Console | Plotly 4D Playback | FastAPI Consumer REST Gateway |
++-----------------------------------------------------------------------------------+
 ```
 
 ---
 
-##  Core AI Engine: PyTorch Spatio-Temporal ConvLSTM
+## Data Engineering and Processing Pipeline
 
-Conventional LSTMs flatten spatial grids, losing critical geographical topology. Our core AI engine (`src/models/pytorch_convlstm.py`) utilizes a **Spatio-Temporal ConvLSTM** where internal matrix multiplications are replaced with 2D convolutions, operating directly on 5D tensors `[batch, time, channels, lat, lon]`.
+The ingestion layer translates raw, heterogeneous data formats into structured, multi-dimensional grids:
 
-```python
-# Model Initialization Example
-import torch
-from src.models.pytorch_convlstm import SpatioTemporalConvLSTM
+### 1. Daily Binary Decoding (`scripts/decode_imd_binary.py` & `scripts/decode_imd_temp.py`)
+* **Precipitation:** Reads IMD 0.25° gridded daily binary files (`.grd`). It reads a single-precision float array of size 129x135, georeferences it to the Indian subcontinent bounding box (Lat 6.5°N - 38.5°N | Lon 66.5°E - 100.0°E), and masks missing data flags (`99.9` or `-99.9` to `NaN`).
+* **Temperature:** Reads IMD 1.0° gridded daily maximum and minimum binary files (`.grd`). It reads a single-precision float array of size 31x31, georeferences it to the bounding box (Lat 7.5°N - 37.5°N | Lon 67.5°E - 97.5°E), and masks invalid values (`-999.0` to `NaN`).
+* **Storage Compilation:** Aggregates daily grids along the time axis into CF-compliant NetCDF4 (`.nc`) files.
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
-model = SpatioTemporalConvLSTM(input_dim=1, hidden_dim=[64, 32], kernel_size=(3, 3), num_layers=2).to(device)
-```
+### 2. Geostationary Satellite Integration
+* Assimilates geostationary satellite telemetry from MOSDAC INSAT-3D/3DR (L2B SST, LST, and precipitation products in HDF5 format).
+* Implements background scripts (`scripts/download_and_decode_all_real.py`) to scrape, regrid, and align satellite coordinates with the ground observation grid.
 
-### Validation Metrics (Historical 2023 Holdout)
-| Climate Variable | Dataset Source | Grid Resolution | RMSE | MAE |
-| :--- | :--- | :--- | :--- | :--- |
-| **Gridded Rainfall** | IMD Pune Ground Base | `0.25° × 0.25°` | `8.45 mm` | `6.12 mm` |
-| **Max Temperature** | IMD Pune Ground Base | `1.0° × 1.0°` | `1.25°C` | `0.87°C` |
-
----
-
-##  Multi-Source Data Assimilation (IMD + MOSDAC INSAT)
-
-The framework seamlessly assimilates the required national datasets:
-
-1. **IMD Gridded Rainfall**: Ingested from `Rainfall_25_Bin.html` (`0.25° × 0.25°`).
-2. **IMD Maximum Temperature**: Ingested from `Max_1_Bin.html` (`1.0° × 1.0°`).
-3. **MOSDAC INSAT LST / SST / Rainfall**: Built-in scaffolding for `3RIMG_L2B` products. 
-   * *Note for Judges*: Because MOSDAC requires authenticated user login to download `.nc` files, the dashboard provides zero-crash fallback notices instructing exactly where to place downloaded NetCDF files (`data/processed/MOSDAC_INSAT_SST.nc`, etc.) for instant live assimilation.
+### 3. Strict Administrative Boundary Masking
+* **Methodology:** Implemented in `src/spatial_predictions.py` via `mask_region_boundary_local`. It extracts administrative boundaries from `data/india_states.geojson` and constructs matplotlib `Path` vector polygons for the selected pilot state (e.g. Karnataka, Uttar Pradesh, Odisha).
+* **Operation:** Evaluates a 2D coordinate grid of latitude and longitude coordinates. Points lying outside the boundary polygon are set to `NaN` using:
+  ```python
+  points = np.column_stack((lon_grid.ravel(), lat_grid.ravel()))
+  mask = path.contains_points(points).reshape(lat_grid.shape)
+  data_array = data_array.where(mask, np.nan)
+  ```
+  This prevents grid calculations from leaking into neighboring states or oceans, maintaining regional integrity for localized water and agricultural modeling.
 
 ---
 
-##  Scalable Framework for National Deployment
+## Hybrid 5-Layer Forecast Engine
 
-To scale this Proof of Concept (PoC) from the **Karnataka Pilot Region** to a high-fidelity, dynamic virtual replica of the entire Indian subcontinent, the following enterprise-grade cloud architecture is designed:
+The spatial forecast engine (`src/spatial_predictions.py`) avoids compounding autoregressive drift through a hybrid 5-layer pipeline:
 
-```text
-[IMD Pune / MOSDAC / NICES] ──(Daily Ingestion)──> [Object Storage (Zarr Cloud Archives)]
-                                                              │
-[FastAPI Tile Server] <──(Real-time Querying)── [PyTorch DDP Multi-GPU Engine]
-        │
-[Streamlit / WebGL Frontend] <──(Concurrent What-If Scenarios)── [Municipal & Agri Stakeholders]
-```
+### Layer 1: PyTorch Spatio-Temporal ConvLSTM Anomaly Model
+* **Architecture:** Swaps standard matrix multiplications in LSTM cells with 2D convolutions (kernel size 3x3, padding 1) to capture spatial correlations. Configured with 2 ConvLSTM layers (64 and 32 hidden dimensions).
+* **Anomaly-Space Mapping:** Rather than predicting absolute values (which leads to severe dampening), the network predicts anomalies relative to daily climatological means.
+  * **Rainfall Anomaly Scaling:** Log-transformed to handle extreme events:
+    $$y = \text{sign}(x) \cdot \frac{\log(1 + |x|)}{3.0}$$
+  * **Temperature Anomaly Scaling:** Standard-scaled:
+    $$y = \frac{x}{10.0}$$
+* **Stochastic Uncertainty Estimation:** Implements Monte Carlo (MC) Dropout during testing. The model performs multiple stochastic forward passes ($N=5$) with active dropout layers to generate standard deviation grids representing forecast confidence bounds ($\pm1\sigma$).
 
-1. **Multi-Source Ingestion Microservices**: Automated daily cron jobs pulling NetCDF & binary gridded payloads from IMD Pune, MOSDAC (INSAT 3D/3DR `3RIMG_L2B`), and NICES platforms into Cloud-Optimized Zarr (`.zarr`) storage buckets.
-2. **Distributed AI Engine (PyTorch DDP)**: The ConvLSTM engine deployed on multi-GPU clusters using PyTorch Distributed Data Parallel (DDP) with automated weekly retraining cycles to minimize model drift.
-3. **Geospatial Tile Serving**: FastAPI backend serving pre-computed Vector Tiles and GeoTIFF layers via Mapbox / WebGL to ensure 60fps interactive rendering across nationwide high-resolution grids.
+### Layer 2: Daily Climatological Reanalysis Atlas
+* Computes daily climatology profiles by grouping historical grid observations (2015-2023) by day-of-year:
+  $$\text{Climatology}(m, d) = \frac{1}{Y} \sum_{y=1}^{Y} \text{Observation}(y, m, d)$$
+* Serves as a physical reference baseline to bound the neural network's predictions at longer horizons.
 
----
+### Layer 3: NOAA CPC Spatial Analog Selection
+* Identifies the three most spatially-similar historical 30-day windows by calculating the Pearson correlation coefficient ($r$) across valid (non-NaN) grid cells:
+  $$r = \frac{\sum (X_i - \bar{X})(Y_i - \bar{Y})}{\sqrt{\sum (X_i - \bar{X})^2 \sum (Y_i - \bar{Y})^2}}$$
+* Yields the top 3 analog years and extracts their subsequent actual trajectories (Day +1 to Day +7) to form a physical analog ensemble.
 
-##  Advanced Capabilities & Decision Support
+### Layer 4: Exponential Blending Schedule
+* Blends the ConvLSTM neural anomaly prediction, the analog year ensemble mean, and the historical climatological grid.
+* The neural component's weight decreases exponentially over the forecast window ($w_{\text{neural}} = 0.55 \cdot 0.88^t$), while the analog and climatology weights increase, stabilizing predictions up to Day +7.
 
-Beyond raw prediction grids, the Digital Twin includes advanced modules designed to convert data into actionable intelligence for disaster management and agricultural planning.
-
-###  Automated Climate Alerts Engine
-* **Source:** `src/climate_alerts.py`
-* **Function:** A built-in extreme weather warning system that continuously monitors the AI's predictive grids against official **India Meteorological Department (IMD)** thresholds.
-* **Capabilities:** Automatically triggers RED, ORANGE, and YELLOW alerts for:
-  * **Severe Heatwaves:** Detects when plains exceed 45°C or coastal regions exceed 37°C.
-  * **Heavy Rainfall & Flooding:** Flags extreme precipitation events (e.g., >204.5 mm/day) providing crucial lead time for reservoir management.
-  * **Dry Spells:** Detects prolonged rainfall deficits to warn of impending agricultural droughts.
-
-###  AI Climate Copilot (RAG Engine)
-* **Source:** `src/climate_copilot.py`
-* **Function:** A localized Retrieval-Augmented Generation (RAG) assistant serving as a virtual agricultural advisor.
-* **Capabilities:** Cross-references the live regional climate state (e.g., current temperature and rainfall averages) against official **ICAR-CRIDA Agricultural Contingency Plans** and **NDMA guidelines**. It provides instant, grounded advice such as crop substitution strategies (e.g., switching to millets during dry spells) or foliar spray recommendations during heat stress.
-
-###  Automated Live Data Synchronization
-* **Source:** `scripts/sync_live_imd.py` & `scripts/download_insat_live.py`
-* **Function:** The system is not static. Upon dashboard initialization, background orchestration scripts automatically reach out to IMD and MOSDAC APIs to synchronize the latest ground truth and satellite observations, ensuring the Digital Twin is perpetually up-to-date.
+### Layer 5: Mean Bias Correction (MBC)
+* Calculates the spatial mean ratio of the climatological grid to the blended grid, applying the scaling factor to adjust regional biases:
+  $$\text{CorrectedGrid} = \text{BlendedGrid} \cdot \left( \frac{\text{Mean}(\text{ClimGrid})}{\text{Mean}(\text{BlendedGrid})} \right)$$
 
 ---
 
-##  Quick Start Guide
+## Meteorological and Hydrological Indices
 
-### 1. Clone the Repository
+The engine (`src/climate_indices.py`) evaluates real-time data to derive high-level decision support indexes:
+
+### 1. WMO Standardized Precipitation Index (SPI-30 & SPI-90)
+* Measures meteorological drought and moisture surplus on 30-day and 90-day scales.
+* Fits a two-parameter Gamma distribution to historical cumulative rainfall and transforms the cumulative probability to a standard normal distribution (mean 0, variance 1).
+* **Drought Categories:** Values $\le -1.0$ indicate moderate drought, $\le -1.5$ severe, and $\le -2.0$ extreme drought.
+
+### 2. FAO-56 Crop Water Stress Index (CWSI)
+* Estimates agricultural water stress by tracking actual vs. potential evapotranspiration ($ET$):
+  $$\text{CWSI} = 1.0 - \frac{ET_{\text{actual}}}{ET_{\text{potential}}}$$
+* Indicates crop stress on a scale from 0.0 (no stress) to 1.0 (water-deficit stress).
+
+### 3. NWS Flash Flood Guidance (FFG)
+* Estimates the volume of rainfall (mm/day) required to initiate local flooding.
+* Intersects incoming grid accumulations with soil moisture saturation percentages to calculate soil capacity limits.
+
+### 4. Monsoon Onset and Northward Advance Tracker
+* Evaluates waypoints using the IMD criteria: at least 5 consecutive days where the spatial mean daily rainfall over the waypoint exceeds $2.5\text{ mm/day}$, commencing after the earliest historical onset window.
+* **Target Year Slicing:** Dynamically filters dataset records to the chosen target year. If the selection exceeds the dataset range (e.g. 2026), it falls back to the latest year of available observations (`2023`), updating all cards and headers dynamically.
+
+---
+
+## Model Verification and Skill Assessment
+
+To evaluate forecast reliability, the platform implements holdout validation using observations from 2022-2023:
+
+### 1. Brier Score and Brier Skill Score (BSS)
+Evaluates the accuracy of probabilistic heavy rainfall forecasts ($>35\text{ mm/day}$):
+* **Brier Score (BS):** Measures the mean squared error of probabilistic predictions:
+  $$\text{BS} = \frac{1}{N} \sum_{n=1}^{N} (p_n - o_n)^2$$
+  where $p_n$ is the forecasted probability and $o_n$ is the binary observation (1 if $>35\text{ mm}$, else 0).
+* **Brier Skill Score (BSS):** Measures the relative improvement over climatological forecasts:
+  $$\text{BSS} = 1.0 - \frac{\text{BS}_{\text{forecast}}}{\text{BS}_{\text{climatology}}}$$
+  A BSS $> 0$ indicates the model out-performs climatological probability.
+
+### 2. Reliability Calibration Curves
+Plots forecasted probabilities against observed frequencies across 10 bins. A perfectly calibrated model aligns along the $y=x$ diagonal line, revealing prediction biases (e.g., over-forecasting or under-forecasting).
+
+---
+
+## Setup and Operational Deployment
+
+### 1. Installation
+Create a clean environment and install dependencies:
 ```bash
-git clone https://github.com/Shikharyadav25/ISRO--Climate-Visuals.git
-cd ISRO--Climate-Visuals
-```
-
-### 2. Environment Setup
-Create and activate an isolated Python environment to avoid dependency conflicts:
-```bash
-# Windows
-python -m venv venv
-venv\Scripts\activate
-
-# Mac/Linux
-python3 -m venv venv
-source venv/bin/activate
-
-# Install all required dependencies
+python -m venv venv312
+source venv312/bin/activate
 pip install -r requirements.txt
 ```
 
-### 3. Choose Your Execution Path
-
-**Option A: Fast Track (Out-of-the-Box)**
-The repository comes pre-loaded with the processed NetCDF climate grids and the fully-trained PyTorch model weights (`.pth`). You can skip data processing and jump straight to **Step 4** to launch the dashboard instantly!
-
-**Option B: Train from Scratch (Full Pipeline)**
-If you wish to replicate the entire data engineering and deep learning pipeline from zero:
-```bash
-# 1. Download IMD/MOSDAC binary data and decode into clean NetCDF4 (.nc) files
-python scripts/download_and_decode_all_real.py
-
-# 2. Train the Spatio-Temporal ConvLSTM on the newly generated grids
-python scripts/train_convlstm.py
-```
-
-### 4. Run Automated Tests
-Verify that the pipeline integrity and PyTorch network initialization are perfectly stable:
-```bash
-python tests/test_integration.py
-```
-
-### 5. Launch the Digital Twin!
-The Digital Twin uses a dual-service architecture. Open **two separate terminal windows** (ensure your `venv` is activated in both).
-
-**Terminal 1 (Backend API):**
-```bash
-uvicorn src.api.main:app --reload --port 8000
-```
-
-**Terminal 2 (Frontend Dashboard):**
+### 2. Execution
+Launch the Streamlit reanalysis console:
 ```bash
 streamlit run app/streamlit_app.py
 ```
 
-*Open your browser to `http://localhost:8501` to explore the interactive digital twin dashboard. The `sync_live_imd.py` script will automatically execute in the background to fetch the latest real-time observations!*
+### 3. FastAPI REST Gateway
+Run the FastAPI service to serve predictions and geodata to external GIS clients:
+```bash
+uvicorn src.api.main:app --reload --port 8000
+```
+* **Endpoint example:** GET `http://localhost:8000/api/status` returns daily data status.
 
 ---
 
-## ‍ Authors & Acknowledgements
-
-**Developed for the ISRO Hackathon (AI-Powered Digital Twin of India's Climate)**  
-*Empowering India's climate resilience through indigenous space technology and artificial intelligence.*  
-**License**: MIT License
+## License
+MIT License

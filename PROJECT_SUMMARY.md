@@ -1,242 +1,105 @@
 # AI-Powered Digital Twin of India's Climate
-## ISRO Hackathon Submission
+## ISRO Hackathon Submission — Problem Statement 5
 
 ---
 
-##  Executive Summary
+## Executive Summary
 
-**Project**: Development of an AI-powered digital twin for India's climate using national meteorological data from 2022-2025.
+This project implements an AI-powered digital twin of India's climate, designed to assimilate heterogeneous space-based remote sensing datasets and ground-based meteorological observations. The system provides a highly interactive virtual reanalysis dashboard that enables users to monitor real-time weather grids, generate 7-day spatiotemporal forecasts, simulate custom climate anomalies, and assess agricultural and water resources risk indicators.
 
-**Approach**: 
-- LSTM deep learning for rainfall prediction
-- Dense neural networks for temperature forecasting
-- Interactive Streamlit dashboard for visualization & scenario analysis
-
-**Deliverables**:
-1.  Two trained ML models (Rainfall LSTM + Temperature DNN)
-2.  Interactive web dashboard with real-time predictions
-3.  What-if simulation module for climate impact assessment
-4.  Complete Python codebase with modular architecture
+The core technology relies on a PyTorch Spatio-Temporal Convolutional LSTM (ConvLSTM) neural network combined with a NOAA Climate Prediction Center (CPC) Analog Year Ensemble. This hybrid framework ensures both short-term dynamic accuracy and long-term seasonal stability, avoiding the compounding drift errors common in standalone autoregressive models.
 
 ---
 
-##  Objectives Met
+## Objectives Met
 
-### 1. Design Scalable Framework 
-- Modular Python architecture
-- Scalable from 1 grid point to entire nation
-- All data processing reproducible
+### 1. Design Scalable Framework
+* Created a modular Python architecture located inside the `src/` directory.
+* Built dynamic slicing utilities capable of cropping NetCDF4 datasets to any regional pilot boundary (e.g. Karnataka, Uttar Pradesh, Odisha) or evaluating national All-India grids.
+* Configured automated pipeline scripts that handle binary decoding, coordinate mapping, and NetCDF file compilation.
 
-### 2. Demonstrate PoC 
-- Rainfall LSTM: R² = 0.78, RMSE = 8.46mm
-- Temperature Models: R² = 0.77, RMSE ≈ 1.1°C
-- 4 years of national validation data
+### 2. Demonstrate Proof of Concept (PoC)
+* Validated the PyTorch ConvLSTM engine on 2022-2023 holdout data, achieving a holdout validation RMSE of 8.45 mm for gridded rainfall and 1.25°C for maximum temperature.
+* Implemented a probabilistic validation suite that computes the Brier Score (BS) and Brier Skill Score (BSS) for heavy precipitation anomalies.
+* Built interactive calibration/reliability diagrams to measure forecast uncertainty reliability.
 
-### 3. Interactive Geospatial Dashboard 
-- Real-time climate metrics
-- 30-day forecast visualization
-- Seasonal analysis & trends
+### 3. Interactive Geospatial Dashboard
+* Fuses multiple observations into a single dashboard: gridded precipitation, maximum and minimum temperatures, satellite-derived Land Surface Temperature (LST), Sea Surface Temperature (SST), and simulated soil moisture indexes.
+* Integrates an interactive 4D animated playback visualization to map forecast progressions over a 7-day lead time.
+* Embeds real-time satellite imagery layers via NASA GIBS and JAXA AMSR2 WMS feeds.
 
-### 4. What-If Simulation Module 
-- Adjustable rainfall (+/-50%)
-- Temperature scenarios (+/-5°C)
-- Impact visualization
+### 4. What-If Scenario Simulator
+* Enables users to scale observed rainfall (+/- 100%) and shift temperatures (+/- 5°C).
+* Renders a comparing visualizer that isolates simulated scenario values, baseline observed values, and scenario anomalies (Simulated - Baseline) with custom diverging colorscales.
+* Supports grid data exports to CSV files.
 
 ---
 
-##  Technical Details
+## Technical Specifications
 
-### Data
-- **Source**: India Meteorological Department (IMD)
-- **Period**: 2022-2025 (4 years, 1460 days)
-- **Variables**: Rainfall, Max Temperature, Min Temperature
-- **Resolution**: 0.25° × 0.25° (rainfall), 1° × 1° (temperature)
-- **Total Records**: ~23 million data points
+### Data Ingestion and Formatting
+* **Precipitation**: IMD daily binary observations (`0.25° × 0.25°` resolution).
+* **Temperatures**: IMD daily binary maximum and minimum observations (`1.0° × 1.0°` resolution).
+* **Satellites**: MOSDAC INSAT-3D/3DR geostationary products, NASA GPM IMERG, Terra MODIS LST, and JAXA AMSR2 soil moisture composites.
+* **Storage**: CF-compliant NetCDF4 (`.nc`) files.
 
-### Models
-| Aspect | Rainfall LSTM | Temperature DNN |
-|--------|---------------|-----------------|
-| Input | 30-day sequence | 8 features |
-| Output | Next day rainfall | Max & Min temp |
-| Accuracy | R² = 0.78 | R² = 0.77 |
-| Error | RMSE 8.46mm | RMSE 1.1°C |
+### Model Architecture
+* **Spatiotemporal ConvLSTM**: PyTorch-based neural network operating on 5D tensors `[Batch, Time, Channels, Height, Width]`, using convolutions in place of matrix multiplications inside LSTM cells to retain geographical topology.
+* **NOAA CPC Analog Ensemble**: Identifies the 3 most spatially-similar historical years using Pearson correlation over a 30-day window, extracting subsequent trajectories to form an ensemble.
+* **Dynamic Seasonal Blending**: Blends ConvLSTM neural anomalies, analog ensemble trajectories, and historical climatological averages using an exponential decay schedule over the forecast horizon.
+* **Mean Bias Correction (MBC)**: Post-processing grid adjustment to align prediction averages with seasonal climatology.
 
 ### Technology Stack
-- **ML/DL**: TensorFlow/Keras
-- **Data**: Pandas, NumPy, Scikit-learn
-- **Frontend**: Streamlit
-- **Visualization**: Plotly, Folium
-- **Platform**: Python 3.9+
+* **ML Framework**: PyTorch
+* **Data Handling**: Xarray, NetCDF4, Pandas, NumPy, Scikit-learn
+* **Frontend Console**: Streamlit
+* **Geospatial Mapping**: Plotly Express (`Scattermap`, `Density_map`), PyDeck
+* **Platform**: Python 3.12+
 
 ---
 
-##  Quick Start
+## Deliverables and Files Included
 
-### Installation (< 5 minutes)
-```bash
-cd climate_digital_twin
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-```
-
-### Run Tests (< 1 minute)
-```bash
-python tests/test_integration.py
-```
-
-### Launch App (< 30 seconds)
-```bash
-cd app
-streamlit run streamlit_app.py
-```
+* **`app/streamlit_app.py`** - Streamlit console frontend script.
+* **`checkpoints/climate_twin_convlstm_final.pth`** - PyTorch rainfall model weights.
+* **`checkpoints/climate_twin_convlstm_temp.pth`** - PyTorch temperature model weights.
+* **`src/spatial_predictions.py`** - 5-layer prediction pipeline, analog correlation, and boundary masking.
+* **`src/climate_indices.py`** - Indices calculators (Monsoon, SPI, CWSI, FFG).
+* **`src/teleconnections.py`** - Fetcher for ENSO/IOD/MJO indices from NOAA CPC.
+* **`src/basin_analysis.py`** - River basin rainfall accumulation engine.
+* **`src/climate_alerts.py`** - Extreme threshold checking and alert broadcasting.
+* **`src/climate_copilot.py`** - Conversational agricultural advisor RAG engine.
+* **`src/models/pytorch_convlstm.py`** - ConvLSTM neural network layer definitions.
+* **`src/model_loader.py`** - Model state-dict checkpoint loader.
+* **`scripts/train_convlstm.py`** - Model training pipeline.
+* **`scripts/download_and_decode_all_real.py`** - Data ingestion orchestrator.
 
 ---
 
-##  Key Results
+## Replication and Setup
 
-### Monsoon Pattern Validation 
-- Monsoon (Jun-Sep): 12.34 mm/day average
-- Non-monsoon: 1.23 mm/day average
-- **Ratio: 10.0x** (matches historical data)
-
-### Prediction Accuracy
-- 1-7 day forecast: 85% accuracy
-- 2-4 week forecast: 75% accuracy
-- Seasonal forecast: 70% accuracy
-
-### Model Comparison
-- **Best**: Min Temperature (R² = 0.81, RMSE = 0.98°C)
-- **Good**: Rainfall (R² = 0.78, RMSE = 8.46mm)
-- **Good**: Max Temperature (R² = 0.77, RMSE = 1.25°C)
-
----
-
-##  Real-World Applications
-
-1. **Agriculture** (Crop Planning)
-   - Monsoon timing & intensity prediction
-   - Drought/flood early warning
-   - Yield optimization
-
-2. **Water Resources** (Reservoir Management)
-   - Inflow forecasting
-   - Spillway operation planning
-   - Drought mitigation
-
-3. **Disaster Management**
-   - Flood prediction (5-7 days early)
-   - Heat wave detection
-   - Emergency preparedness
-   - **Automated Alerting**: Real-time RED/ORANGE/YELLOW warnings based on official IMD thresholds.
-
-4. **Urban Planning**
-   - Climate-aware infrastructure design
-   - Green space planning
-   - Cooling center location optimization
-
-5. **Decision Support (AI Copilot)**
-   - Context-aware agricultural advisory using a Retrieval-Augmented Generation (RAG) engine.
-   - Matches live regional climate states against ICAR-CRIDA contingency plans.
+1. **Initialize Environment**:
+   ```bash
+   python -m venv venv312
+   source venv312/bin/activate
+   pip install -r requirements.txt
+   ```
+2. **Execute Application**:
+   ```bash
+   streamlit run app/streamlit_app.py
+   ```
+3. **Trigger Pipelines (Optional)**:
+   ```bash
+   python scripts/download_and_decode_all_real.py
+   python scripts/train_convlstm.py
+   ```
 
 ---
 
-##  Files Provided
+## Innovation and Novelty Highlights
 
-### Code (Fully Documented)
-- `app/streamlit_app.py` - Main interactive Streamlit dashboard
-- `src/api/main.py` - FastAPI backend web service
-- `src/climate_alerts.py` - Extreme weather warnings (Heatwave, Coldwave, Heavy Rain)
-- `src/climate_copilot.py` - Conversation assistant for chatbot UI
-- `src/spatial_predictions.py` - Spatio-temporal gridded forecasting
-- `src/models/pytorch_convlstm.py` - ConvLSTM neural network definition
-- `src/model_loader.py` - Unified model singleton loader
-- `src/predictions.py` - LSTM/DNN prediction loops
-- `src/feature_engineering.py` - Feature calculators (lags, rolling averages, cyclic sine/cosine)
-- `scripts/train_convlstm.py` - Active PyTorch ConvLSTM training pipeline
-- `scripts/download_and_decode_all_real.py` - Real-time ingestion orchestrator
-- `scripts/decode_imd_binary.py` & `scripts/decode_imd_temp.py` - Ground base IMD binary decoders
-- `scripts/check_downloaded_data.py` & `scripts/download_multi_decade_imd.py` - Data checking & historical fetching utilities
-- `tests/test_integration.py` - Pipeline validation tests
-
-### Models (Pre-trained, Ready-to-use)
-- `models/rainfall_lstm_model.h5` - LSTM Rainfall predictor
-- `models/max_temp_model.h5` - DNN Max Temperature predictor
-- `models/min_temp_model.h5` - DNN Min Temperature predictor
-- `models/rainfall_scaler.pkl` & `models/scalers.pkl` & `models/temp_feature_scaler.pkl` - Preprocessing scalers
-- `checkpoints/climate_twin_convlstm_final.pth` - PyTorch Spatio-temporal rainfall weights
-- `checkpoints/climate_twin_convlstm_temp.pth` - PyTorch Spatio-temporal max temp weights
-
-### Documentation
-- `README.md` - Setup, integration tests, and app deployment guide
-- `RESULT.MD` - Detailed model metrics and findings
-- `PROJECT_SUMMARY.md` - This executive summary file
-
----
-
-##  Reproducibility
-
-All steps are reproducible:
-1. Raw data → Cleaned data (Notebook 02)
-2. Feature engineering (Notebook 03)
-3. Model training (Notebooks 04-05)
-4. Integration (test_integration.py)
-5. Deployment (streamlit_app.py)
-
-**Estimated time to reproduce**: 8-10 hours (mainly model training)
-
----
-
-##  Innovation & Novelty
-
-1. **First National-Scale Climate Twin**: Integrated rainfall + temperature in one system
-2. **Spatio-Temporal ConvLSTM**: Uses 2D spatial convolutions on 5D tensors to preserve geographical topology, far outperforming standard flat LSTMs.
-3. **Multi-Scale Aggregation**: Grid points → Regional → National level
-4. **Monsoon-Aware Features**: Cyclical encoding captures Indian seasonality
-5. **Interactive What-If**: Non-technical users can explore scenarios
-6. **Integrated AI Copilot (RAG)**: Automatically maps predictions to actionable government contingency plans.
-7. **Automated Live Sync**: Background orchestration scripts automatically pull and regrid live IMD/MOSDAC data upon startup.
-
----
-
-##  Limitations & Future Work
-
-### Current Limitations
-1. 4 years of training data (ideal: 10+ years)
-2. Grid resolution limited to IMD data availability (0.25° / 1.0°)
-3. Missing variables (pressure, humidity, wind)
-
-### Future Enhancements
-1. Add 5-10 more years of historical data
-2. Ensemble models for better accuracy
-3. Sub-regional disaggregation
-4. Extreme event prediction module
-5. Integration with seasonal forecast systems
-
----
-
-##  Support & Documentation
-
-**To run the project:**
-1. Follow README.md (5 minutes setup)
-2. Run test_integration.py (verify all works)
-3. Launch FastAPI backend service: `uvicorn src.api.main:app --port 8000`
-4. Launch Streamlit app: `streamlit run app/streamlit_app.py`
-
-**For questions:**
-- See RESULT.MD for technical details
-- Check `src/` code comments for implementation details
-
----
-
-##  Conclusion
-
-This project demonstrates a complete ML pipeline from raw climate data to interactive climate predictions, suitable for operational deployment across Indian agriculture, water resources, and disaster management sectors.
-
-**Status**:  Production-Ready |  Fully Documented |  Reproducible |  Scalable
-
----
-
-**Submitted for**: ISRO Hackathon 2024-25  
-**Date**: [Your Submission Date]  
-**Team**: [Your Name/Team]
+1. **Strict Boundary Clipping**: Implements local matplotlib path checks to mask gridded datasets to exact state boundaries, preventing visual data spillage.
+2. **4D animated Playback**: Dynamic timeline controls mapping 2D grids smoothly across forecast steps.
+3. **Probabilistic Skill Assessment**: Holds out 2022-2023 observations to compute Brier Skill Scores and Plotly calibration reliability curves.
+4. **Anomalous Difference Mapping**: isolatable scenario anomaly layer to directly view absolute changes.
+5. **Decoupled Architecture**: Cleaned out TensorFlow and legacy 1D predictors to optimize runtime performance.

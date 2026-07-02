@@ -21,6 +21,13 @@ venv312/
 config.json
 
 # Large Datasets & Model Weights
-# data/raw/
+data/raw/
 # data/processed/**/*.nc
 # checkpoints/
+
+# Temporary workspace files & logs
+data/processed/temp_imdlib/
+diff.txt
+streamlit_error.log
+data/test_imdlib/
+scripts/mosdac_api/*.log
