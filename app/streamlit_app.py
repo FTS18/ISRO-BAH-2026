@@ -159,7 +159,7 @@ st.markdown("""
         [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2,
         [data-testid="stSidebar"] h3 {
             font-size: 0.58rem !important; font-weight: 700 !important;
-            color: #475569 !important; letter-spacing: 1.5px !important;
+            color: #94A3B8 !important; letter-spacing: 1.5px !important;
             margin-top: 0.5rem !important; margin-bottom: 0.3rem !important;
             text-transform: uppercase !important;
             border-bottom: 1px solid rgba(255,255,255,0.05) !important;
@@ -196,10 +196,17 @@ st.markdown("""
             border-left-color: rgba(255,107,0,0.5) !important;
             color: #CBD5E1 !important;
         }
-        [data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true"] {
+        [data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true"],
+        [data-testid="stSidebar"] div[role="radiogroup"] label:has(input:checked),
+        [data-testid="stSidebar"] div[role="radiogroup"] label:has([data-checked="true"]) {
             background: rgba(255,107,0,0.08) !important;
             color: #FF6B00 !important; border-left: 2px solid #FF6B00 !important;
             font-weight: 600 !important;
+        }
+        [data-testid="stSidebar"] div[role="radiogroup"] label[data-checked="true"] *,
+        [data-testid="stSidebar"] div[role="radiogroup"] label:has(input:checked) *,
+        [data-testid="stSidebar"] div[role="radiogroup"] label:has([data-checked="true"]) * {
+            color: #FF6B00 !important;
         }
         [data-testid="stSidebar"] div[role="radiogroup"] label > div:first-child { display: none !important; }
         [data-testid="stSidebar"] div[role="radiogroup"] label div[data-testid="stMarkdownContainer"] p {
