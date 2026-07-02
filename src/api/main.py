@@ -10,8 +10,8 @@ Then visit: http://localhost:8000/docs for interactive Swagger UI.
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import Optional, List
+from pydantic import BaseModel, Field
+from typing import Optional, List, Dict, Any
 import numpy as np
 import xarray as xr
 import os
@@ -98,6 +98,28 @@ class AlertResponse(BaseModel):
     pilot_region: str
     alert_count: int
     alerts: list
+
+class ConfigureRequest(BaseModel):
+    """Schema for POST /api/v1/configure — external simulation configuration interface."""
+    region: str = Field(default="Karnataka", description="Target pilot region name from PILOT_REGIONS.")
+    variable: str = Field(default="rainfall", description="Climate variable: 'rainfall' or 'max_temp'.")
+    forecast_days: int = Field(default=7, ge=1, le=14, description="Number of days to forecast (1-14).")
+    return_full_grid: bool = Field(default=False, description="If true, returns full flat lat/lon/value grid instead of summary statistics only.")
+    extra_params: Optional[Dict[str, Any]] = Field(default=None, description="Reserved for future model-specific configuration parameters.")
+
+class ConfigureResponse(BaseModel):
+    status: str
+    config_applied: Dict[str, Any]
+    pilot_region: str
+    variable: str
+    forecast_days: int
+    grid_resolution_degrees: float
+    predicted_grid_mean: float
+    predicted_grid_max: float
+    predicted_grid_min: float
+    predicted_grid_std: float
+    units: str
+    grid_points: Optional[List[Dict[str, float]]] = None
 
 # ─────────────────────────── Endpoints ───────────────────────────
 @app.get("/", tags=["Info"])
@@ -257,5 +279,99 @@ def get_alerts(region: str = Query("Karnataka", description="Select Pilot Region
             ds_temp.max_temp.isel(time=-1)
         )
         return AlertResponse(pilot_region=region, alert_count=len(alerts), alerts=alerts)
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+
+@app.post("/api/v1/configure", response_model=ConfigureResponse, tags=["Configuration"])
+def configure_and_run_simulation(config: ConfigureRequest):
+    """
+    **Configure and trigger a digital twin simulation run via JSON request body.**
+
+    This endpoint satisfies the ISRO PS-5 requirement that the digital twin provides
+    "interfaces to configure the simulations, output, and data consumers".
+
+    Submit a JSON body specifying `region`, `variable`, `forecast_days`, and whether to
+    return the full spatial grid (`return_full_grid=true`). The endpoint immediately runs
+    the configured forecast and returns the results alongside a config echo.
+
+    Example request body:
+    ```json
+    {
+      "region": "Maharashtra",
+      "variable": "rainfall",
+      "forecast_days": 5,
+      "return_full_grid": false
+    }
+    ```
+    """
+    region = config.region
+    variable = config.variable
+    days = config.forecast_days
+
+    if region not in PILOT_REGIONS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unknown region '{region}'. Valid regions: {sorted(PILOT_REGIONS.keys())}"
+        )
+    if variable not in ("rainfall", "max_temp"):
+        raise HTTPException(
+            status_code=422,
+            detail="variable must be 'rainfall' or 'max_temp'"
+        )
+
+    try:
+        ds_rain, ds_temp = _load_datasets(region)
+        if variable == "rainfall":
+            preds, _, _ = predictor.predict_rainfall_next_days_spatial(ds_rain.rainfall, days_ahead=days)
+            units = "mm/day"
+            resolution = 0.25
+        else:
+            preds, _, _ = predictor.predict_rainfall_next_days_spatial(ds_temp.max_temp, days_ahead=days)
+            units = "degC"
+            resolution = 1.0
+
+        final_grid = preds[-1]   # last day forecast
+        flat = final_grid[~np.isnan(final_grid)]
+
+        grid_points = None
+        if config.return_full_grid:
+            if variable == "rainfall":
+                lats = ds_rain.rainfall.lat.values
+                lons = ds_rain.rainfall.lon.values
+            else:
+                lats = ds_temp.max_temp.lat.values
+                lons = ds_temp.max_temp.lon.values
+            import xarray as xr
+            lat_g, lon_g = np.meshgrid(lats, lons, indexing='ij')
+            grid_points = [
+                {"lat": float(lat_g[i, j]), "lon": float(lon_g[i, j]), "value": float(final_grid[i, j])}
+                for i in range(final_grid.shape[0])
+                for j in range(final_grid.shape[1])
+                if not np.isnan(final_grid[i, j])
+            ]
+
+        config_echo = {
+            "region": region,
+            "variable": variable,
+            "forecast_days": days,
+            "return_full_grid": config.return_full_grid,
+            "extra_params": config.extra_params,
+        }
+
+        return ConfigureResponse(
+            status="SUCCESS",
+            config_applied=config_echo,
+            pilot_region=region,
+            variable=variable,
+            forecast_days=days,
+            grid_resolution_degrees=resolution,
+            predicted_grid_mean=round(float(np.nanmean(flat)), 3),
+            predicted_grid_max=round(float(np.nanmax(flat)), 3),
+            predicted_grid_min=round(float(np.nanmin(flat)), 3),
+            predicted_grid_std=round(float(np.nanstd(flat)), 3),
+            units=units,
+            grid_points=grid_points
+        )
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e))
