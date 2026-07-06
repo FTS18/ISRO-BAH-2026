@@ -68,10 +68,19 @@ from src.climate_indices import (
 )
 from src.teleconnections import fetch_all_teleconnections
 from src.basin_analysis import compute_basin_rainfall_accumulation, compute_basin_forecast_accumulation
+import base64
+import io
+from PIL import Image
+from src.logo_base64 import LOGO_BASE64
+
+# Decode logo
+logo_bytes = base64.b64decode(LOGO_BASE64)
+logo_image = Image.open(io.BytesIO(logo_bytes))
+
 # Page config
 st.set_page_config(
     page_title="India's Climate Digital Twin",
-    page_icon="assets/logo.png",
+    page_icon=logo_image,
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -589,7 +598,7 @@ with st.sidebar:
     # MIRR Branding
     col1, col2 = st.columns([1, 4])
     with col1:
-        st.image("assets/logo.png", width=45)
+        st.image(logo_image, width=45)
     with col2:
         st.markdown("<h2 style='margin-top: 0px; font-weight: 800; letter-spacing: -0.5px;'>MIRR</h2>", unsafe_allow_html=True)
     st.markdown(_SDIV, unsafe_allow_html=True)
