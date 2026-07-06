@@ -1297,12 +1297,12 @@ if page == "Dashboard":
         
         target_dt = pd.to_datetime(selected_date)
         monsoon_onset_data = load_monsoon_onset_data_v3(target_dt.year)
-        curr_rain = reg_rain.rainfall.sel(time=target_dt, method='nearest')
-        curr_temp = reg_temp.max_temp.sel(time=target_dt, method='nearest')
-        curr_mint = reg_mint.min_temp.sel(time=target_dt, method='nearest') if reg_mint is not None else None
-        curr_lst  = reg_lst.lst.sel(time=target_dt, method='nearest') if reg_lst is not None else None
-        curr_sst  = reg_sst.sst.sel(time=target_dt, method='nearest') if reg_sst is not None else None
-        curr_insat_rain = reg_insat_rain.rain.sel(time=target_dt, method='nearest') if reg_insat_rain is not None else None
+        curr_rain = reg_rain_masked.rainfall.sel(time=target_dt, method='nearest')
+        curr_temp = reg_temp_masked.max_temp.sel(time=target_dt, method='nearest')
+        curr_mint = reg_mint_masked.min_temp.sel(time=target_dt, method='nearest') if reg_mint_masked is not None else None
+        curr_lst  = reg_lst_masked.lst.sel(time=target_dt, method='nearest') if reg_lst_masked is not None else None
+        curr_sst  = reg_sst_masked.sst.sel(time=target_dt, method='nearest') if reg_sst_masked is not None else None
+        curr_insat_rain = reg_insat_rain_masked.rain.sel(time=target_dt, method='nearest') if reg_insat_rain_masked is not None else None
         
         col1, col2, col3, col4 = st.columns(4)
         with col1:
