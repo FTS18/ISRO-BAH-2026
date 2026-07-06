@@ -18,3 +18,5 @@ fastapi>=0.111.0
 uvicorn>=0.30.0
 pydantic>=2.7.0
 global-land-mask>=1.0.0
+scipy>=1.12.0
+imdlib

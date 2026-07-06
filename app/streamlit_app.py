@@ -1119,6 +1119,20 @@ reg_lst_masked = mask_region_boundary_local(reg_lst, pilot_region) if reg_lst is
 reg_sst_masked = mask_region_boundary_local(reg_sst, pilot_region) if reg_sst is not None else None
 reg_insat_rain_masked = mask_region_boundary_local(reg_insat_rain, pilot_region) if reg_insat_rain is not None else None
 
+# Slice full India atlas to region to prevent inhomogeneous shape during ConvLSTM spatial prediction
+if ds_rain is not None and clim_atlas_rain:
+    try:
+        lat_idx = np.where(np.isin(ds_rain.rainfall.lat.values, reg_rain.rainfall.lat.values))[0]
+        lon_idx = np.where(np.isin(ds_rain.rainfall.lon.values, reg_rain.rainfall.lon.values))[0]
+        clim_atlas_rain_regional = {
+            k: v[lat_idx[0]:lat_idx[-1]+1, lon_idx[0]:lon_idx[-1]+1]
+            for k, v in clim_atlas_rain.items()
+        }
+    except Exception:
+        clim_atlas_rain_regional = clim_atlas_rain
+else:
+    clim_atlas_rain_regional = clim_atlas_rain
+
 # Verify masked outputs are not entirely NaN before committing
 if reg_rain_masked is not None and not np.isnan(reg_rain_masked.rainfall.isel(time=-1).mean()):
     reg_rain = reg_rain_masked
@@ -1486,7 +1500,7 @@ if page == "Dashboard":
                         # AI Inference — pass pre-computed full climatological atlas
                         is_rainfall = any(lbl in str(target_var_grid.name or '').lower() for lbl in ['rain', 'precip'])
                         predictions, lower_b, upper_b = predictor.predict_rainfall_next_days_spatial(
-                            target_var_grid, days_ahead=7, clim_atlas=clim_atlas_rain if is_rainfall else None
+                            target_var_grid, days_ahead=7, clim_atlas=clim_atlas_rain_regional if is_rainfall else None
                         )
                         
                         pt_preds = [float(p[lat_idx, lon_idx]) for p in predictions]
@@ -1639,12 +1653,12 @@ elif page == "Spatial Predictions":
                 val_lbl = "Rain (mm)" if "Rainfall" in variable_sel else "Temp (°C)"
                 
                 # Pass the full multi-year climatological atlas for correct seasonal blending
-                atlas_to_use = clim_atlas_rain if "Rainfall" in variable_sel else None
+                atlas_to_use = clim_atlas_rain_regional if "Rainfall" in variable_sel else None
                 predictions, lower_b, upper_b = predictor.predict_rainfall_next_days_spatial(
                     base_grid, days_ahead=pred_days, clim_atlas=atlas_to_use
                 )
                 # Surface analog years for UI
-                analog_years_found = predictor.find_analog_years(base_grid, clim_atlas_rain or {}, n_analogs=3)
+                analog_years_found = predictor.find_analog_years(base_grid, clim_atlas_rain_regional or {}, n_analogs=3)
 
                 # Store in session state for interactivity
                 st.session_state['spatial_preds'] = {
@@ -1705,9 +1719,9 @@ elif page == "Spatial Predictions":
             import pandas as _pd
             _last_dt = _pd.to_datetime(base_grid.time.values[-1])
             _fcast_dt = _pd.date_range(start=_last_dt + _pd.Timedelta(days=1), periods=pred_days, freq='D')
-            if clim_atlas_rain:
+            if clim_atlas_rain_regional:
                 zmin_fixed, zmax_fixed = predictor.seasonal_colorscale_limits(
-                    clim_atlas_rain, _fcast_dt, percentile=95.0
+                    clim_atlas_rain_regional, _fcast_dt, percentile=95.0
                 )
             else:
                 zmin_fixed = 0.0
