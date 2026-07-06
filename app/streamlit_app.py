@@ -596,11 +596,7 @@ _SDIV = "<hr style='border:none;border-top:1px solid rgba(255,255,255,0.05);marg
 
 with st.sidebar:
     # MIRR Branding
-    col1, col2 = st.columns([1, 3])
-    with col1:
-        st.image(logo_image, width=65)
-    with col2:
-        st.markdown("<div style='font-size: 2.2rem; font-weight: 900; color: #F8FAFC; letter-spacing: -0.8px; line-height: 1.1; margin-top: 18px;'>MIRR</div>", unsafe_allow_html=True)
+    st.markdown("<div style='font-size: 2.6rem; font-weight: 900; color: #F8FAFC; letter-spacing: -0.8px; line-height: 1.1; margin-top: 10px; margin-bottom: 10px;'>MIRR</div>", unsafe_allow_html=True)
 
     st.header("Navigation")
     page = st.radio(
