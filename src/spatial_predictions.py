@@ -83,11 +83,19 @@ class SpatialClimatePredictor:
             except Exception:
                 return data_array
                 
-        if region_name in STATE_PATHS and STATE_PATHS[region_name]:
+        # Determine the paths to use for masking
+        paths = []
+        if region_name == "All India":
+            for state_paths in STATE_PATHS.values():
+                paths.extend(state_paths)
+        elif region_name in STATE_PATHS:
+            paths = STATE_PATHS[region_name]
+            
+        if paths:
             lon_grid, lat_grid = np.meshgrid(sliced.lon.values, sliced.lat.values)
             points = np.column_stack((lon_grid.ravel(), lat_grid.ravel()))
             mask = np.zeros(len(points), dtype=bool)
-            for path in STATE_PATHS[region_name]:
+            for path in paths:
                 mask |= path.contains_points(points)
             mask_2d = mask.reshape(lat_grid.shape)
             mask_da = xr.DataArray(mask_2d, coords=[sliced.lat, sliced.lon], dims=["lat", "lon"])

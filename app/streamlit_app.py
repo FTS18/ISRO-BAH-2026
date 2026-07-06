@@ -445,10 +445,19 @@ def load_copilot_engine():
 
 def mask_region_boundary_local(data_array, region_name):
     from src.spatial_predictions import STATE_PATHS
-    if data_array is None or region_name not in STATE_PATHS:
+    if data_array is None:
         return data_array
         
-    paths = STATE_PATHS[region_name]
+    if region_name == "All India":
+        # Combine all state paths to construct the complete national boundary of India
+        paths = []
+        for state_paths in STATE_PATHS.values():
+            paths.extend(state_paths)
+    elif region_name in STATE_PATHS:
+        paths = STATE_PATHS[region_name]
+    else:
+        return data_array
+        
     lats = data_array.lat.values
     lons = data_array.lon.values
     
