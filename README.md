@@ -9,17 +9,23 @@ app_file: app/streamlit_app.py
 pinned: false
 ---
 
-<p align="center">
-  <img src="assets/logo.png" width="120" alt="MIRR Logo">
-</p>
-
-<h1 align="center">MIRR</h1>
-<p align="center"><strong>India Climate Digital Twin: 2D Spatiotemporal Geospatial Reanalysis and Prognostic Forecasting Platform</strong></p>
-
-[![Python 3.12](https://img.shields.io/badge/Python-3.12-blue.svg)](https://www.python.org/)
-[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://streamlit.io/)
-[![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?style=flat&logo=PyTorch&logoColor=white)](https://pytorch.org/)
-[![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
+<table align="center" style="border: none; border-collapse: collapse; border-width: 0px;">
+  <tr style="border: none; border-width: 0px;">
+    <td width="130" align="center" style="border: none; border-width: 0px; padding-right: 20px; vertical-align: middle;">
+      <img src="assets/logo.png" width="120" alt="MIRR Logo">
+    </td>
+    <td style="border: none; border-width: 0px; vertical-align: middle;">
+      <h1 style="margin: 0; padding: 0; border: none; font-size: 2.2em;">MIRR</h1>
+      <p style="margin: 5px 0 10px 0; font-size: 1.05em; line-height: 1.4;"><strong>India Climate Digital Twin: 2D Spatiotemporal Geospatial Reanalysis and Prognostic Forecasting Platform</strong></p>
+      <p style="margin: 0; padding: 0;">
+        <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.12-blue.svg" alt="Python 3.12"></a>
+        <a href="https://streamlit.io/"><img src="https://static.streamlit.io/badges/streamlit_badge_black_white.svg" alt="Streamlit App"></a>
+        <a href="https://pytorch.org/"><img src="https://img.shields.io/badge/PyTorch-EE4C2C?style=flat&logo=PyTorch&logoColor=white" alt="PyTorch"></a>
+        <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-green.svg" alt="MIT License"></a>
+      </p>
+    </td>
+  </tr>
+</table>
 
 ![India Climate Digital Twin System Infographic](assets/digital_twin_workflow.png)
 
