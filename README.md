@@ -1,4 +1,16 @@
+---
+title: Mirr
+emoji: 🌍
+colorFrom: blue
+colorTo: green
+sdk: streamlit
+sdk_version: 1.58.0
+app_file: app.py
+pinned: false
+---
+
 # India Climate Digital Twin: 2D Spatiotemporal Geospatial Reanalysis and Prognostic Forecasting Platform
+
 
 [![Python 3.12](https://img.shields.io/badge/Python-3.12-blue.svg)](https://www.python.org/)
 [![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://streamlit.io/)
