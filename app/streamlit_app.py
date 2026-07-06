@@ -600,8 +600,7 @@ with st.sidebar:
     with col1:
         st.image(logo_image, width=45)
     with col2:
-        st.markdown("<h2 style='margin-top: 0px; font-weight: 800; letter-spacing: -0.5px;'>MIRR</h2>", unsafe_allow_html=True)
-    st.markdown(_SDIV, unsafe_allow_html=True)
+        st.markdown("<div style='font-size: 2.2rem; font-weight: 900; color: #F8FAFC; letter-spacing: -0.8px; line-height: 1.1; margin-top: 2px;'>MIRR</div>", unsafe_allow_html=True)
 
     st.header("Navigation")
     page = st.radio(
