@@ -54,3 +54,34 @@ jobs:
           else
             echo "No new data to commit."
           fi
+
+      - name: Sync to Hugging Face Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          pip install huggingface_hub
+          python -c "
+          import os
+          from huggingface_hub import HfApi
+          api = HfApi(token=os.environ['HF_TOKEN'])
+          api.upload_folder(
+              folder_path='.',
+              repo_id='ananaydubey/mirr',
+              repo_type='space',
+              ignore_patterns=[
+                  'venv312/*',
+                  '.git/*',
+                  '.vscode/*',
+                  '*.pyc',
+                  '__pycache__/*',
+                  '.gemini/*',
+                  'data/raw/*',
+                  'data/processed/IMD_Rainfall_2015_2023.nc',
+                  'data/processed/IMD_MaxTemp_2015_2023.nc',
+                  'data/processed/IMD_MinTemp_2015_2023.nc',
+                  'data/processed/IMD_Gridded_Rainfall_0.25_Real_v2.nc',
+                  'data/processed/IMD_Gridded_Rainfall_0.25_Real_v3.nc',
+                  'data/processed/temp_*'
+              ]
+          )
+          "
