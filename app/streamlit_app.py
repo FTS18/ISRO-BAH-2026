@@ -631,6 +631,7 @@ with st.sidebar:
     map_style = st.radio(
         "Map Rendering Mode:",
         ["WebGL 3D Engine (PyDeck)", "High-Resolution Pixel Grid (Lossless)", "Smooth Gradient Overlay (Premium)"],
+        index=1,
         label_visibility="collapsed"
     )
     st.markdown(_SDIV, unsafe_allow_html=True)
