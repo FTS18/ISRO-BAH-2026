@@ -271,13 +271,19 @@ st.markdown("""
             text-transform: uppercase !important;
         }
 
+        .sidebar-wordmark {
+            font-size: 2.6rem; font-weight: 900; color: #F8FAFC;
+            letter-spacing: -0.8px; line-height: 1.1;
+            margin-top: 10px; margin-bottom: 10px;
+        }
+
         /* ── RESPONSIVE DESIGN (MOBILE & TABLET) ── */
         @media (max-width: 768px) {
             [data-testid="block-container"] {
                 width: 100% !important;
                 min-width: 100% !important;
                 max-width: 100% !important;
-                padding: 1rem 0rem 0rem 0rem !important;
+                padding: 0.5rem 0.5rem 0.5rem 0.5rem !important;
                 margin: 0 !important;
             }
             .main-header {
@@ -286,7 +292,7 @@ st.markdown("""
                 padding-right: 0.5rem;
             }
             [data-testid="stMain"] div[data-testid="stLayoutWrapper"] {
-                padding: 0.2rem !important;
+                padding: 0.5rem !important;
                 border-left: none !important;
                 border-right: none !important;
                 box-shadow: none !important;
@@ -302,6 +308,15 @@ st.markdown("""
             div[data-testid="stMetricValue"] {
                 font-size: 1.25rem !important;
             }
+            .sidebar-wordmark {
+                font-size: 2.0rem !important;
+                margin-top: 5px !important;
+                margin-bottom: 5px !important;
+            }
+            img, .element-container img {
+                max-width: 100% !important;
+                height: auto !important;
+            }
         }
 
         /* ── TABS ───────────────────────────────── */
@@ -310,6 +325,11 @@ st.markdown("""
             border: 1px solid rgba(255,255,255,0.07) !important;
             padding: 3px !important; gap: 2px !important;
             border-radius: 2px !important;
+            overflow-x: auto !important;
+            white-space: nowrap !important;
+            flex-wrap: nowrap !important;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
         }
         button[data-baseweb="tab"] {
             color: #475569 !important; font-size: 0.73rem !important;
@@ -317,6 +337,8 @@ st.markdown("""
             background: transparent !important; border: none !important;
             padding: 7px 14px !important; transition: all 0.15s ease !important;
             border-radius: 1px !important; text-transform: uppercase !important;
+            flex-shrink: 0 !important;
+            white-space: nowrap !important;
         }
         button[data-baseweb="tab"]:hover {
             color: #CBD5E1 !important; background: rgba(255,255,255,0.04) !important;
@@ -605,7 +627,7 @@ _SDIV = "<hr style='border:none;border-top:1px solid rgba(255,255,255,0.05);marg
 
 with st.sidebar:
     # MIRR Branding
-    st.markdown("<div style='font-size: 2.6rem; font-weight: 900; color: #F8FAFC; letter-spacing: -0.8px; line-height: 1.1; margin-top: 10px; margin-bottom: 10px;'>MIRR</div>", unsafe_allow_html=True)
+    st.markdown("<div class='sidebar-wordmark'>MIRR</div>", unsafe_allow_html=True)
 
     st.header("Navigation")
     page = st.radio(
