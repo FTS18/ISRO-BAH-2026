@@ -9,8 +9,12 @@ app_file: app.py
 pinned: false
 ---
 
-# India Climate Digital Twin: 2D Spatiotemporal Geospatial Reanalysis and Prognostic Forecasting Platform
+<p align="center">
+  <img src="assets/logo.png" width="120" alt="MIRR Logo">
+</p>
 
+<h1 align="center">MIRR</h1>
+<p align="center"><strong>India Climate Digital Twin: 2D Spatiotemporal Geospatial Reanalysis and Prognostic Forecasting Platform</strong></p>
 
 [![Python 3.12](https://img.shields.io/badge/Python-3.12-blue.svg)](https://www.python.org/)
 [![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://streamlit.io/)

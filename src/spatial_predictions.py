@@ -106,12 +106,13 @@ class SpatialClimatePredictor:
         import pandas as pd
         import warnings
         times = pd.to_datetime(full_rain_grid.time.values)
+        rain_values = full_rain_grid.values
         clim_grids = {}
         for t_idx, t in enumerate(times):
             key = (t.month, t.day)
             if key not in clim_grids:
                 clim_grids[key] = []
-            clim_grids[key].append(full_rain_grid.values[t_idx])
+            clim_grids[key].append(rain_values[t_idx])
 
         clim_atlas = {}
         for key, grids in clim_grids.items():

@@ -33,6 +33,8 @@ def sync_live_data():
             ds_old.close()
             continue
             
+        # Collect new chunks in memory to avoid repeating expensive NetCDF disk writes
+        new_chunks = []
         while last_date < target_date:
             start_date = last_date + datetime.timedelta(days=1)
             
@@ -49,7 +51,7 @@ def sync_live_data():
                 time.sleep(1) # Be nice to IMD servers
             except Exception as e:
                 print(f"Failed to fetch {var_type}: {e}")
-                break # Exit the while loop and move to next variable
+                break # Exit the while loop
                 
             ds_new = ds_new.rename({imd_var_name: var_name})
             
@@ -69,26 +71,33 @@ def sync_live_data():
                     ds_new['lat'] = ds_old['lat']
                     ds_new['lon'] = ds_old['lon']
                     
-            ds_combined = xr.concat([ds_old, ds_new], dim='time')
+            new_chunks.append(ds_new)
+            last_date = end_date
+            
+        if new_chunks:
+            print(f"Combining {len(new_chunks)} in-memory chunks for {var_type}...")
+            ds_all_new = xr.concat(new_chunks, dim='time')
+            ds_combined = xr.concat([ds_old, ds_all_new], dim='time')
             ds_combined[var_name] = ds_combined[var_name].astype(np.float32)
             
             temp_path = os.path.join(data_dir, f"temp_sync_{file_name}")
+            print(f"Writing updated NetCDF to {file_name}...")
             ds_combined.to_netcdf(temp_path, engine='netcdf4')
             
             ds_old.close()
             ds_combined.close()
             
+            for chunk in new_chunks:
+                chunk.close()
+                
             os.replace(temp_path, file_path)
-            print(f"Successfully updated {file_name} to {end_str}!")
+            print(f"Successfully updated {file_name} to {last_date}!")
             any_updates = True
+        else:
+            ds_old.close()
+            print(f"No updates written for {var_type}.")
             
-            # Reopen the newly updated dataset for the next iteration of the chunk loop
-            ds_old = xr.open_dataset(file_path, engine='netcdf4')
-            last_date = end_date
-            
-        ds_old.close()
-        
     return any_updates
-
+ 
 if __name__ == '__main__':
     sync_live_data()
