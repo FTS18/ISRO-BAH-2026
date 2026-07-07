@@ -466,10 +466,58 @@ def load_copilot_engine():
     return ClimateCopilotEngine()
 
 def mask_region_boundary_local(data_array, region_name):
-    from src.spatial_predictions import STATE_PATHS
     if data_array is None:
         return data_array
         
+    # Check if this is an IMD dataset (these are natively masked in the netCDF files/slice_region)
+    if isinstance(data_array, xr.Dataset):
+        has_imd = any(v in data_array.data_vars for v in ["rainfall", "max_temp", "min_temp"])
+    else:
+        has_imd = data_array.name in ["rainfall", "max_temp", "min_temp"]
+        
+    if has_imd:
+        return data_array
+        
+    try:
+        # Determine the appropriate IMD mask to use based on grid resolution
+        lats = data_array.lat.values
+        if len(lats) > 1:
+            grid_spacing = abs(lats[1] - lats[0])
+        else:
+            grid_spacing = 1.0
+            
+        is_high_res = grid_spacing < 0.5
+        mask_ref = None
+        
+        # Access module-level sliced reference datasets to use their NaN patterns
+        glob = globals()
+        if is_high_res:
+            if 'reg_rain' in glob and glob['reg_rain'] is not None:
+                mask_ref = glob['reg_rain'].rainfall.isel(time=-1)
+        else:
+            if 'reg_temp' in glob and glob['reg_temp'] is not None:
+                mask_ref = glob['reg_temp'].max_temp.isel(time=-1)
+            elif 'reg_rain' in glob and glob['reg_rain'] is not None:
+                mask_ref = glob['reg_rain'].rainfall.isel(time=-1)
+                
+        if mask_ref is not None:
+            # Align mask to match target dataset's grid coordinates
+            mask_ref_aligned = mask_ref.interp_like(data_array, method="nearest")
+            mask_da = ~np.isnan(mask_ref_aligned)
+            
+            if isinstance(data_array, xr.Dataset):
+                masked = data_array.copy(deep=True)
+                for var in masked.data_vars:
+                    masked[var] = masked[var].where(mask_da, np.nan)
+                return masked
+            else:
+                return data_array.where(mask_da, np.nan)
+    except Exception:
+        # Fallback to standard matplotlib polygon masking if alignment fails
+        pass
+        
+    # Matplotlib polygon path fallback (original implementation)
+    from src.spatial_predictions import STATE_PATHS
     if region_name == "All India":
         # Combine all state paths to construct the complete national boundary of India
         paths = []
