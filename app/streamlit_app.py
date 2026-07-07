@@ -2126,18 +2126,51 @@ elif page == "What-If Simulation":
     
     col1, col2 = st.columns([1, 2])
     with col1:
-        st.subheader("Adjust Custom Parameters")
-        rainfall_change = st.slider("Regional Rainfall Change (%)", -50, 200, key="what_if_rain", step=5)
-        temp_change = st.slider("Regional Temperature Change (°C)", -5.0, 6.0, key="what_if_temp", step=0.5)
+        st.subheader("Adjust Simulation Parameters")
+        sim_model = st.selectbox(
+            "Climate Scenario Model:",
+            ["Clausius-Clapeyron (Uniform)", "Heat Dome (Spatially Coupled)", "Cyclone Vortex (Localized Storm)"],
+            key="what_if_model_type"
+        )
+        
+        lat_min_reg, lat_max_reg, lon_min_reg, lon_max_reg = PILOT_REGIONS.get(pilot_region, (11.5, 18.5, 74.0, 78.5))
+        c_lat = float((lat_min_reg + lat_max_reg) / 2.0)
+        c_lon = float((lon_min_reg + lon_max_reg) / 2.0)
+        
+        if sim_model == "Clausius-Clapeyron (Uniform)":
+            rainfall_change = st.slider("Regional Rainfall Change (%)", -50, 200, key="what_if_rain", step=5)
+            temp_change = st.slider("Regional Temperature Change (°C)", -5.0, 6.0, key="what_if_temp", step=0.5)
+        elif sim_model == "Heat Dome (Spatially Coupled)":
+            epicenter_lat = st.slider("Epicenter Latitude (°N)", float(lat_min_reg), float(lat_max_reg), c_lat, step=0.25)
+            epicenter_lon = st.slider("Epicenter Longitude (°E)", float(lon_min_reg), float(lon_max_reg), c_lon, step=0.25)
+            dome_intensity = st.slider("Peak Temperature Anomaly (°C)", 1.0, 6.0, 4.0, step=0.5)
+            dome_radius = st.slider("Dome Radius (Degrees)", 1.0, 6.0, 3.0, step=0.5)
+        else:
+            eye_lat = st.slider("Eye Latitude (°N)", float(lat_min_reg), float(lat_max_reg), c_lat, step=0.25)
+            eye_lon = st.slider("Eye Longitude (°E)", float(lon_min_reg), float(lon_max_reg), c_lon, step=0.25)
+            peak_rain = st.slider("Peak Rain Intensity (mm/day)", 50.0, 250.0, 150.0, step=10.0)
+            storm_radius = st.slider("Vortex Radius (Degrees)", 1.0, 5.0, 2.5, step=0.5)
+            
         st.caption("Adjust sliders or click a preset above to update maps instantly.")
         
     with col2:
         st.subheader("Spatial Impact Results")
-        if st.session_state.active_stress and (rainfall_change == st.session_state.what_if_rain and temp_change == st.session_state.what_if_temp):
-            st.warning(f"**ACTIVE STRESS TEST**: `{st.session_state.active_stress}`")
+        if sim_model == "Clausius-Clapeyron (Uniform)":
+            if st.session_state.active_stress and (rainfall_change == st.session_state.what_if_rain and temp_change == st.session_state.what_if_temp):
+                st.warning(f"**ACTIVE STRESS TEST**: `{st.session_state.active_stress}`")
+        else:
+            st.warning(f"**ACTIVE STRESS TEST**: `{sim_model} Scenario Simulation`")
             
         with st.spinner("Running AI non-linear thermodynamic spatial simulation..."):
-            results = predictor.simulate_what_if_spatial(latest_rain, latest_temp, rainfall_change, temp_change)
+            if sim_model == "Clausius-Clapeyron (Uniform)":
+                results = predictor.simulate_what_if_spatial(latest_rain, latest_temp, rainfall_change, temp_change)
+            elif sim_model == "Heat Dome (Spatially Coupled)":
+                from src.scenario_generator import ClimateScenarioInjector
+                results = ClimateScenarioInjector.inject_heat_dome(latest_temp, latest_rain, epicenter_lat, epicenter_lon, dome_radius, dome_intensity)
+            else:
+                from src.scenario_generator import ClimateScenarioInjector
+                results = ClimateScenarioInjector.inject_cyclonic_vortex(latest_temp, latest_rain, eye_lat, eye_lon, storm_radius, peak_rain)
+                
             mod_rain_da = xr.DataArray(results['modified_rainfall'], coords=[latest_rain.lat, latest_rain.lon], dims=["lat", "lon"], name="mod_rain")
             mod_temp_da = xr.DataArray(results['modified_max_temp'], coords=[latest_temp.lat, latest_temp.lon], dims=["lat", "lon"], name="mod_temp")
             
@@ -3246,30 +3279,20 @@ elif page == "Sector Impacts":
             
         st.info(f"**Advisory**: {advice}")
     with col_w2:
-        fig_b = go.Figure(data=[
-            go.Bar(name='Actual Inflow Proxy', x=['Inflow Proxy'], y=[curr_rain_mean], marker_color='#06B6D4'),
-            go.Bar(name='Normal Benchmark', x=['Inflow Proxy'], y=[6.5], marker_color='#6366F1')
-        ])
-        fig_b.update_layout(
-            title=dict(text="Basin Inflow Proxy vs Seasonal Normal (mm/day)", font=dict(size=12, color="#E2E8F0")),
-            barmode='group',
-            paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(0,0,0,0)",
-            font=dict(color="#94A3B8"),
-            height=260,
-            margin=dict(l=10, r=10, t=50, b=10),
-            legend=dict(
-                orientation="h",
-                yanchor="bottom",
-                y=1.02,
-                xanchor="right",
-                x=1,
-                font=dict(size=10)
-            ),
-            xaxis=dict(showgrid=False, zeroline=False),
-            yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.05)", zeroline=False)
-        )
-        st.plotly_chart(fig_b, use_container_width=True)
+        try:
+            from src.basin_analysis import compute_basin_runoff
+            basin_df = compute_basin_runoff(ds_rain.rainfall, "data/india_river_basins.geojson")
+            if not basin_df.empty:
+                st.markdown("<h5 style='margin-top:0px;margin-bottom:5px;'>Basin Runoff & Inflow Volume</h5>", unsafe_allow_html=True)
+                st.dataframe(
+                    basin_df[["River Basin", "Basin Area (km²)", "Mean Precipitation (mm)", "Reservoir Inflow (MCM)"]], 
+                    use_container_width=True, 
+                    hide_index=True
+                )
+            else:
+                st.info("No basin data found in the GeoJSON definition.")
+        except Exception as e:
+            st.warning(f"Hydrological basin analysis error: {e}")
 
     # ── Disaster Management ──────────────────────────────────────────────────
     st.markdown('<h3 class="section-header">Disaster Risk Reduction — Automated IMD Alert Status</h3>', unsafe_allow_html=True)
