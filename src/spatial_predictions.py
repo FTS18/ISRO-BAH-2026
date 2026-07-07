@@ -569,3 +569,67 @@ class SpatialClimatePredictor:
         rmse_clim = np.sqrt(np.mean((o - clim_mean) ** 2))
         skill = 1.0 - (rmse / rmse_clim) if rmse_clim > 0 else np.nan
         return {"rmse": rmse, "mae": mae, "bias": bias, "corr": corr, "skill": skill}
+
+    def compute_trend_analysis(self, time_series_y: np.ndarray):
+        """
+        Computes the Mann-Kendall trend test (via Kendall's Tau) and Sen's Slope
+        for a 1D spatio-temporal time series of grid values.
+        """
+        import scipy.stats
+        
+        # Remove NaNs
+        y = time_series_y[~np.isnan(time_series_y)]
+        if len(y) < 3:
+            return {"tau": 0.0, "p_value": 1.0, "slope": 0.0, "trend": "Stable", "significant": False}
+            
+        if np.all(y == y[0]):
+            return {"tau": 0.0, "p_value": 1.0, "slope": 0.0, "trend": "Stable", "significant": False}
+            
+        x = np.arange(len(y))
+        
+        # Kendall's Tau is equivalent to the Mann-Kendall test statistic for monotonic trends
+        try:
+            tau, p_val = scipy.stats.kendalltau(x, y)
+            if np.isnan(tau) or np.isnan(p_val):
+                tau, p_val = 0.0, 1.0
+        except Exception:
+            tau, p_val = 0.0, 1.0
+        
+        # Sen's Slope calculation (median of pairwise slopes)
+        n = len(y)
+        # For performance, cap pairwise slopes if the time-series is extremely long
+        if n > 400:
+            # Subsample points evenly
+            indices = np.linspace(0, n - 1, 400, dtype=int)
+            y_sub = y[indices]
+            x_sub = x[indices]
+            n_sub = len(y_sub)
+            slopes = []
+            for i in range(n_sub):
+                for j in range(i + 1, n_sub):
+                    dx = x_sub[j] - x_sub[i]
+                    if dx > 0:
+                        slopes.append((y_sub[j] - y_sub[i]) / dx)
+        else:
+            slopes = []
+            for i in range(n):
+                for j in range(i + 1, n):
+                    slopes.append((y[j] - y[i]) / (j - i))
+                    
+        slope = float(np.median(slopes)) if len(slopes) > 0 else 0.0
+        
+        is_sig = bool(p_val < 0.05) if not np.isnan(p_val) else False
+        
+        if is_sig:
+            trend = "Increasing" if tau > 0 else "Decreasing"
+        else:
+            trend = "Stable"
+            
+        return {
+            "tau": float(tau) if not np.isnan(tau) else 0.0,
+            "p_value": float(p_val) if not np.isnan(p_val) else 1.0,
+            "slope": slope,
+            "trend": trend,
+            "significant": is_sig
+        }
+

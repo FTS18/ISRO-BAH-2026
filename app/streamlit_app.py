@@ -699,6 +699,7 @@ with st.sidebar:
          "Climate Drivers",
          "Analysis",
          "Sector Impacts",
+         "Cyclone Tracker",
          "About"],
         label_visibility="collapsed"
     )
@@ -858,7 +859,7 @@ def render_map(fig, use_container_width=True, on_select=None, key=None):
         
     return chart_ret
 
-def plot_spatial_map(data_array, title, colorscale, val_name="Value", zmin=None, zmax=None, plot_wind=False):
+def plot_spatial_map(data_array, title, colorscale, val_name="Value", zmin=None, zmax=None, plot_wind=False, plot_currents=False):
     if data_array.name is None:
         data_array = data_array.rename("value")
     df = data_array.to_dataframe().reset_index()
@@ -1108,6 +1109,50 @@ def plot_spatial_map(data_array, title, colorscale, val_name="Value", zmin=None,
                         line=dict(color="rgba(255, 255, 255, 0.5)", width=1.2),
                         hoverinfo="none", showlegend=False
                     ))
+        except Exception:
+            pass
+
+    if plot_currents:
+        try:
+            from src.marine_analysis import derive_ocean_currents
+            U, V, magnitude = derive_ocean_currents(data_array)
+            lats_for_currents = data_array.lat.values
+            lons_for_currents = data_array.lon.values
+            
+            if len(lats_for_currents) > 1 and lats_for_currents[0] < lats_for_currents[1]:
+                U = np.flipud(U)
+                V = np.flipud(V)
+                lats_for_currents = np.flipud(lats_for_currents)
+                
+            magnitude_norm = np.nan_to_num(magnitude, nan=1e-10)
+            magnitude_norm[magnitude_norm == 0] = 1e-10
+            U_norm, V_norm = U / magnitude_norm, V / magnitude_norm
+            
+            step = max(1, len(lats_for_currents) // 18)
+            arrow_lats, arrow_lons = [], []
+            scale = abs(lons_for_currents[-1] - lons_for_currents[0]) / 35.0
+            
+            for i in range(0, len(lats_for_currents), step):
+                for j in range(0, len(lons_for_currents), step):
+                    if not np.isnan(data_array.values[i, j]):
+                        start_lat, start_lon = lats_for_currents[i], lons_for_currents[j]
+                        end_lat, end_lon = start_lat + V_norm[i, j] * scale, start_lon + U_norm[i, j] * scale
+                        
+                        angle = np.arctan2(end_lat - start_lat, end_lon - start_lon)
+                        head_len = scale * 0.35
+                        
+                        h1_lat, h1_lon = end_lat - head_len * np.sin(angle - np.pi/6), end_lon - head_len * np.cos(angle - np.pi/6)
+                        h2_lat, h2_lon = end_lat - head_len * np.sin(angle + np.pi/6), end_lon - head_len * np.cos(angle + np.pi/6)
+                        
+                        arrow_lats.extend([start_lat, end_lat, h1_lat, end_lat, h2_lat, None])
+                        arrow_lons.extend([start_lon, end_lon, h1_lon, end_lon, h2_lon, None])
+            
+            if arrow_lats:
+                fig.add_trace(go.Scattermap(
+                    mode="lines", lat=arrow_lats, lon=arrow_lons,
+                    line=dict(color="rgba(0, 240, 255, 0.75)", width=1.5),
+                    hoverinfo="none", showlegend=False
+                ))
         except Exception:
             pass
 
@@ -1428,7 +1473,31 @@ if page == "Dashboard":
                 st.warning("LST data not available for this date.")
         with tab_sst:
             if curr_sst is not None:
-                event_sst = render_map(plot_spatial_map(curr_sst, f"MOSDAC INSAT SST ({pilot_region})", "Jet", val_name="SST (°C)"), use_container_width=True, on_select="rerun")
+                col_sst_ctrl1, col_sst_ctrl2 = st.columns(2)
+                with col_sst_ctrl1:
+                    sst_mode = st.radio("SST Analysis Layer:", ["Raw Temperature", "Marine Heatwave (MHW) Alert Zones"], key="sst_layer_mode")
+                with col_sst_ctrl2:
+                    overlay_currents = st.checkbox("Overlay Geostrophic Ocean Currents", value=False, key="sst_curr_overlay")
+                
+                if sst_mode == "Raw Temperature":
+                    event_sst = render_map(plot_spatial_map(curr_sst, f"MOSDAC INSAT SST ({pilot_region})", "Jet", val_name="SST (°C)", plot_currents=overlay_currents), use_container_width=True, on_select="rerun")
+                else:
+                    from src.marine_analysis import detect_marine_heatwaves
+                    mhw_da = detect_marine_heatwaves(curr_sst)
+                    event_sst = render_map(plot_spatial_map(mhw_da, f"Active Marine Heatwaves ({pilot_region})", "turbo", val_name="MHW Category", zmin=0.0, zmax=4.0, plot_currents=overlay_currents), use_container_width=True, on_select="rerun")
+                    st.caption("**MHW Categories**: 0 = Normal, 1 = Moderate, 2 = Strong, 3 = Severe, 4 = Extreme")
+                    
+                    # Compute MHW statistics
+                    mhw_vals = mhw_da.values
+                    total_pts = np.sum(~np.isnan(mhw_vals))
+                    active_pts = np.sum(mhw_vals >= 1.0)
+                    pct = (active_pts / total_pts * 100) if total_pts > 0 else 0
+                    
+                    col_stat1, col_stat2 = st.columns(2)
+                    with col_stat1:
+                        st.metric("Total Marine Area Surveyed", f"{total_pts * 625:,.0f} km²")
+                    with col_stat2:
+                        st.metric("Active Heatwave Coverage", f"{pct:.1f}% of Ocean Area", delta=f"{active_pts:,.0f} active cells", delta_color="inverse")
             else:
                 st.warning("SST data not available for this date.")
         with tab_insat_rain:
@@ -1658,6 +1727,24 @@ if page == "Dashboard":
                             hovermode="x unified", height=400, margin=dict(l=20, r=20, t=40, b=20)
                         )
                         st.plotly_chart(fig_pt, use_container_width=True)
+                        
+                        # Add Mann-Kendall Trend Analysis (reloaded)
+                        try:
+                            full_series = target_var_grid.isel(lat=lat_idx, lon=lon_idx).values
+                            trend_res = predictor.compute_trend_analysis(full_series)
+                            
+                            st.markdown("<h4 style='margin-top: 10px; margin-bottom: 5px;'>Spatio-Temporal Trend Analysis (Full Series)</h4>", unsafe_allow_html=True)
+                            col_t1, col_t2, col_t3 = st.columns(3)
+                            with col_t1:
+                                sig_text = "Significant" if trend_res["significant"] else "Not Significant"
+                                st.metric("Statistical Trend (Mann-Kendall)", trend_res["trend"], delta=sig_text, delta_color="normal" if trend_res["significant"] else "off")
+                            with col_t2:
+                                change_unit = "°C/day" if "temp" in str(target_var_grid.name or '').lower() else "mm/day"
+                                st.metric("Sen's Slope (Rate of Change)", f"{trend_res['slope']:+.4f} {change_unit}")
+                            with col_t3:
+                                st.metric("Kendall's Tau / p-value", f"{trend_res['tau']:.3f} / {trend_res['p_value']:.4f}")
+                        except Exception as trend_err:
+                            st.caption(f"Trend computation inactive: {trend_err}")
                     except Exception as e:
                         st.error(f"Failed to generate drill-down forecast: {e}")
 
@@ -2378,6 +2465,13 @@ elif page == "Analysis":
     st.markdown(f'<h2 class="section-header">Satellite & Ground Data Assimilation ({pilot_region})</h2>', unsafe_allow_html=True)
     st.write("Fusing ground-based IMD observations with satellite MOSDAC data using Optimal Interpolation / Inverse-Variance Weighting.")
     
+    # Toggle for resolution enhancement
+    resolution_mode = st.radio(
+        "Spatial Resolution Enhancement Mode:",
+        ["Standard Optimal Interpolation (0.25°)", "Deep Learning Super-Resolution (U-Net/CNN + ETOPO DEM)"],
+        key="res_enhancement_mode"
+    )
+    
     if reg_lst is not None:
         latest_lst = reg_lst.lst.isel(time=-1)
         try:
@@ -2386,16 +2480,50 @@ elif page == "Analysis":
             latest_lst_interp = latest_lst
         fused_temp = predictor.assimilate_multi_source_data(latest_temp, latest_lst_interp, variable="temperature")
         
-        col_da1, col_da2, col_da3 = st.columns(3)
-        with col_da1:
-            st.markdown("##### IMD Ground Max Temp (1.0°)")
-            render_map(plot_spatial_map(latest_temp, "IMD Ground Max Temp (1.0°)", "YlOrRd", val_name="Temp (°C)", zmin=20, zmax=45), use_container_width=True)
-        with col_da2:
-            st.markdown("##### MOSDAC INSAT LST (1.0°)")
-            render_map(plot_spatial_map(latest_lst, "MOSDAC INSAT LST (1.0°)", "YlOrRd", val_name="LST (°C)", zmin=20, zmax=45), use_container_width=True)
-        with col_da3:
-            st.markdown("##### Fused Grid (Optimal Interpolated)")
-            render_map(plot_spatial_map(fused_temp, "Fused High-Fidelity Temperature", "YlOrRd", val_name="Fused Temp (°C)", zmin=20, zmax=45), use_container_width=True)
+        # Check if deep learning downscaler is selected
+        if "Deep Learning" in resolution_mode:
+            try:
+                from src.downscaler import TemperatureDownscaler
+                dem_path = os.path.join('data', 'processed', 'india_dem_0.25.nc')
+                ds_dem_local = xr.open_dataset(dem_path)
+                
+                downscaler = TemperatureDownscaler()
+                sr_temp = downscaler.downscale(latest_temp, ds_dem_local)
+                
+                col_da1, col_da2, col_da3 = st.columns(3)
+                with col_da1:
+                    st.markdown("##### IMD Ground Max Temp (1.0°)")
+                    render_map(plot_spatial_map(latest_temp, "IMD Ground Max Temp (1.0°)", "YlOrRd", val_name="Temp (°C)", zmin=20, zmax=45), use_container_width=True)
+                with col_da2:
+                    st.markdown("##### Bilinear Interpolated Temp (0.25°)")
+                    bilinear_temp = latest_temp.interp_like(sr_temp, method="linear")
+                    render_map(plot_spatial_map(bilinear_temp, "Bilinear Interpolation", "YlOrRd", val_name="Temp (°C)", zmin=20, zmax=45), use_container_width=True)
+                with col_da3:
+                    st.markdown("##### DL Super-Resolved Temp (0.25°)")
+                    render_map(plot_spatial_map(sr_temp, "Deep Learning Downscaled", "YlOrRd", val_name="Temp (°C)", zmin=20, zmax=45), use_container_width=True)
+            except Exception as e:
+                st.warning(f"Deep learning downscaling failed: {e}. Falling back to standard assimilation.")
+                col_da1, col_da2, col_da3 = st.columns(3)
+                with col_da1:
+                    st.markdown("##### IMD Ground Max Temp (1.0°)")
+                    render_map(plot_spatial_map(latest_temp, "IMD Ground Max Temp (1.0°)", "YlOrRd", val_name="Temp (°C)", zmin=20, zmax=45), use_container_width=True)
+                with col_da2:
+                    st.markdown("##### MOSDAC INSAT LST (1.0°)")
+                    render_map(plot_spatial_map(latest_lst, "MOSDAC INSAT LST (1.0°)", "YlOrRd", val_name="LST (°C)", zmin=20, zmax=45), use_container_width=True)
+                with col_da3:
+                    st.markdown("##### Fused Grid (Optimal Interpolated)")
+                    render_map(plot_spatial_map(fused_temp, "Fused High-Fidelity Temperature", "YlOrRd", val_name="Fused Temp (°C)", zmin=20, zmax=45), use_container_width=True)
+        else:
+            col_da1, col_da2, col_da3 = st.columns(3)
+            with col_da1:
+                st.markdown("##### IMD Ground Max Temp (1.0°)")
+                render_map(plot_spatial_map(latest_temp, "IMD Ground Max Temp (1.0°)", "YlOrRd", val_name="Temp (°C)", zmin=20, zmax=45), use_container_width=True)
+            with col_da2:
+                st.markdown("##### MOSDAC INSAT LST (1.0°)")
+                render_map(plot_spatial_map(latest_lst, "MOSDAC INSAT LST (1.0°)", "YlOrRd", val_name="LST (°C)", zmin=20, zmax=45), use_container_width=True)
+            with col_da3:
+                st.markdown("##### Fused Grid (Optimal Interpolated)")
+                render_map(plot_spatial_map(fused_temp, "Fused High-Fidelity Temperature", "YlOrRd", val_name="Fused Temp (°C)", zmin=20, zmax=45), use_container_width=True)
     else:
         col_da1, col_da2 = st.columns(2)
         with col_da1:
@@ -2425,7 +2553,9 @@ elif page == "Analysis":
 
     # ── FEATURE 4: 3D TOPOGRAPHICAL & OROGRAPHIC CLIMATE SLICING ───────────────
     st.markdown('<h2 class="section-header">3D Topographical & Orographic Climate Slicing</h2>', unsafe_allow_html=True)
-    st.write("Mapping live rainfall and thermal distributions across an authentic High-Resolution Digital Elevation Model (NOAA ETOPO 2022).")
+    st.write("Mapping live rainfall, thermal distributions, and flood risk zones across an authentic High-Resolution Digital Elevation Model (NOAA ETOPO 2022).")
+    
+    overlay_param = st.selectbox("Select 3D Map Overlay Parameter:", ["Max Temperature (°C)", "DEM Flood Risk Zone"], key="3d_elevation_overlay_param")
     
     df_3d = latest_temp.to_dataframe(name='max_temp').reset_index().dropna()
     
@@ -2438,14 +2568,38 @@ elif page == "Analysis":
         
         elevations = ds_dem['z'].sel(lat=lats, lon=lons, method='nearest').values
         df_3d['approx_elevation_m'] = np.maximum(0, elevations)
+        
+        if overlay_param == "DEM Flood Risk Zone":
+            from src.flood_analysis import compute_flood_risk
+            flood_da = compute_flood_risk(latest_rain, ds_dem)
+            flood_vals = flood_da.sel(lat=lats, lon=lons, method='nearest').values
+            df_3d['flood_risk'] = flood_vals
+            risk_labels = {0.0: "0. Low", 1.0: "1. Moderate", 2.0: "2. High", 3.0: "3. Extreme"}
+            df_3d['Flood Risk'] = df_3d['flood_risk'].map(risk_labels).fillna("0. Low")
     except Exception as e:
         df_3d['approx_elevation_m'] = 0
-    
-    fig_3d = px.scatter_3d(
-        df_3d, x="lon", y="lat", z="approx_elevation_m", color="max_temp",
-        color_continuous_scale="YlOrRd", size_max=10, opacity=0.9,
-        title=f"3D Topographical Thermal & Orographic Mapping ({pilot_region})"
-    )
+        df_3d['Flood Risk'] = "0. Low"
+        
+    if overlay_param == "Max Temperature (°C)":
+        fig_3d = px.scatter_3d(
+            df_3d, x="lon", y="lat", z="approx_elevation_m", color="max_temp",
+            color_continuous_scale="YlOrRd", size_max=10, opacity=0.9,
+            title=f"3D Topographical Thermal & Orographic Mapping ({pilot_region})"
+        )
+    else:
+        fig_3d = px.scatter_3d(
+            df_3d, x="lon", y="lat", z="approx_elevation_m", color="Flood Risk",
+            color_discrete_map={
+                "0. Low": "#10B981", 
+                "1. Moderate": "#FCD34D", 
+                "2. High": "#F97316", 
+                "3. Extreme": "#EF4444"
+            },
+            category_orders={"Flood Risk": ["0. Low", "1. Moderate", "2. High", "3. Extreme"]},
+            size_max=10, opacity=0.9,
+            title=f"3D Topographical Flood Risk Mapping ({pilot_region})"
+        )
+        
     fig_3d.update_layout(
         paper_bgcolor="#111827", scene=dict(
             xaxis=dict(title="Longitude", gridcolor="#1E293B", backgroundcolor="#0B0F19"),
@@ -2682,6 +2836,89 @@ elif page == "Analysis":
         import traceback
         st.warning(f"Validation computation error: {e}\n\n```python\n{traceback.format_exc()}\n```")
 
+# PAGE: CYCLONE TRACKER
+elif page == "Cyclone Tracker":
+    st.markdown('<h2 class="section-header">Tropical Cyclone Tracker & Trajectories</h2>', unsafe_allow_html=True)
+    st.write("Tracking and visualizing active tropical storm systems via live GDACS feeds and monsoonal depressions traced directly from gridded observations.")
+    
+    from src.cyclone_tracker import fetch_gdacs_active_cyclones, detect_gridded_depressions, get_status_color
+    
+    with st.spinner("Analyzing gridded observations and fetching live feeds..."):
+        active_storms = fetch_gdacs_active_cyclones()
+        gridded_storms = {}
+        if ds_rain is not None:
+            gridded_storms = detect_gridded_depressions(ds_rain.rainfall)
+            
+    all_storms = {**active_storms, **gridded_storms}
+    
+    if not all_storms:
+        st.info("No active storm systems or gridded monsoon depressions detected.")
+    else:
+        selected_storm = st.selectbox("Select Storm System:", list(all_storms.keys()))
+        storm_info = all_storms[selected_storm]
+        
+        st.markdown(f"**Description**: {storm_info['description']}")
+        
+        col_m1, col_m2, col_m3 = st.columns(3)
+        with col_m1:
+            st.metric("Timeline End / Landfall", storm_info["landfall_date"])
+        with col_m2:
+            st.metric("Max Sustained Winds", f"{storm_info['max_wind_speed_kmh']} km/h")
+        with col_m3:
+            st.metric("Min Central Pressure", f"{storm_info['min_pressure_hpa']} hPa")
+            
+        track_points = storm_info["track"]
+        lats = [pt["lat"] for pt in track_points]
+        lons = [pt["lon"] for pt in track_points]
+        winds = [pt["wind"] for pt in track_points]
+        pressures = [pt["pressure"] for pt in track_points]
+        statuses = [pt["status"] for pt in track_points]
+        times = [pt["time"] for pt in track_points]
+        colors = [get_status_color(pt["status"]) for pt in track_points]
+        
+        center_lat = float(np.mean(lats))
+        center_lon = float(np.mean(lons))
+        
+        fig_track = go.Figure()
+        fig_track.add_trace(go.Scattermap(
+            mode="lines+markers",
+            lat=lats,
+            lon=lons,
+            line=dict(color="#FF4D4D", width=3),
+            marker=dict(size=12, color=colors, opacity=0.9),
+            text=[f"Time: {t}<br>Status: {s}<br>Wind: {w} kts<br>Pressure: {p} hPa" for t, s, w, p in zip(times, statuses, winds, pressures)],
+            hovertemplate="%{text}<extra></extra>",
+            name="Storm Track"
+        ))
+        
+        fig_track.update_layout(
+            map=dict(style="dark", center=dict(lat=center_lat, lon=center_lon), zoom=4.5),
+            paper_bgcolor="#111827", font=dict(color="#F8FAFC"),
+            height=550, margin=dict(l=0, r=0, t=10, b=0)
+        )
+        st.plotly_chart(fig_track, use_container_width=True)
+        
+        st.markdown('<h3 class="section-header">Storm Intensity Metrics Profile</h3>', unsafe_allow_html=True)
+        col_g1, col_g2 = st.columns(2)
+        with col_g1:
+            fig_wind = px.line(
+                x=times, y=winds, markers=True,
+                title="Maximum Sustained Winds (knots)",
+                labels={"x": "Timeline (MM-DD HH:MM)", "y": "Winds (knots)"}
+            )
+            fig_wind.update_traces(line_color="#EF4444", marker=dict(size=8, color="#DC2626"))
+            fig_wind.update_layout(paper_bgcolor="#111827", plot_bgcolor="#0B0F19", font=dict(color="#F8FAFC"))
+            st.plotly_chart(fig_wind, use_container_width=True)
+        with col_g2:
+            fig_pres = px.line(
+                x=times, y=pressures, markers=True,
+                title="Minimum Central Pressure (hPa)",
+                labels={"x": "Timeline (MM-DD HH:MM)", "y": "Pressure (hPa)"}
+            )
+            fig_pres.update_traces(line_color="#3B82F6", marker=dict(size=8, color="#2563EB"))
+            fig_pres.update_layout(paper_bgcolor="#111827", plot_bgcolor="#0B0F19", font=dict(color="#F8FAFC"))
+            st.plotly_chart(fig_pres, use_container_width=True)
+
 # PAGE 5: ABOUT
 elif page == "About":
     st.markdown('<h2 class="section-header">About This Digital Twin</h2>', unsafe_allow_html=True)
@@ -2865,6 +3102,11 @@ elif page == "Sector Impacts":
     cwsi_grid = compute_crop_water_stress(reg_rain.rainfall, reg_temp.max_temp)
     cwsi_mean = float(np.nanmean(cwsi_grid))
     cwsi_cat, cwsi_color = cwsi_category(cwsi_mean)
+    
+    # Create DataArray for the district alerts
+    cwsi_da = xr.DataArray(cwsi_grid, coords=[reg_temp.max_temp.lat, reg_temp.max_temp.lon], dims=["lat", "lon"])
+    sm_da = predictor.slice_region(ds_sm, pilot_region) if ds_sm is not None else None
+    
     col_a1, col_a2, col_a3, col_a4, col_a5 = st.columns(5)
     with col_a1:
         if curr_rain_mean < 2.0:
@@ -2898,6 +3140,18 @@ elif page == "Sector Impacts":
         st.metric("Paddy Flood / Lodging Risk", label, f"Peak {rain_max:.1f} mm/day")
     with col_a5:
         st.metric("FAO-56 Crop Water Stress (CWSI)", f"{cwsi_mean:.2f}", cwsi_cat, help="Crop Water Stress Index. 0 = no stress, 1 = maximum stress.")
+
+    # Add District-Level Crop Stress Alerts Table
+    if sm_da is not None:
+        try:
+            from src.agricultural_analysis import generate_district_alerts
+            geojson_path = os.path.join("data", "india_states.geojson")
+            district_df = generate_district_alerts(cwsi_da, sm_da, geojson_path)
+            if not district_df.empty:
+                st.markdown("<h4 style='margin-top: 15px; margin-bottom: 5px;'>District-Level Crop Stress Alerts</h4>", unsafe_allow_html=True)
+                st.dataframe(district_df, use_container_width=True, hide_index=True)
+        except Exception as e:
+            st.warning(f"Could not load district alerts: {e}")
 
     # Sector Impact Visualizations (Bar & Gauge Charts)
     st.markdown('<h3 class="section-header">Visual Risk Indicators</h3>', unsafe_allow_html=True)
