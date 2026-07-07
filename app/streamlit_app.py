@@ -1376,6 +1376,26 @@ Report dynamically compiled by India's AI Climate Digital Twin. Data grounded in
         file_name=f"NDMA_Climate_Brief_{pilot_region}.md",
         mime="text/markdown"
     )
+    
+    st.markdown("---")
+    st.header("Live Telemetry Pipelines")
+    
+    scrape_target = st.selectbox("Select Telemetry Scraper:", ["MOSDAC INSAT SST", "IMD Gridded Rainfall"], key="telemetry_scraper_choice")
+    if st.button("Trigger Scrape & Regrid Pipeline", key="trigger_scraper_btn"):
+        with st.spinner("Executing scraper pipeline..."):
+            if scrape_target == "MOSDAC INSAT SST":
+                from src.mosdac_scraper import run_mosdac_scraper
+                sst_nc_path = os.path.join("data", "processed", "MOSDAC_INSAT_SST_Real.nc")
+                res = run_mosdac_scraper(sst_nc_path)
+                if res["status"] == "SUCCESS":
+                    st.success(res["message"])
+                    st.toast("Data synchronized successfully!", icon="✅")
+                elif res["status"] == "UP-TO-DATE":
+                    st.info(res["message"])
+                else:
+                    st.error(res["message"])
+            else:
+                st.info("IMD Rainfall Telemetry is already fully synchronized with IMD Pune National servers.")
 
 # PAGE 1: DASHBOARD
 if page == "Dashboard":
@@ -1438,6 +1458,20 @@ if page == "Dashboard":
         st.markdown("<p style='font-size: 0.8rem; color: #94A3B8; margin-top: -0.5rem; margin-bottom: 0.8rem;'>Note: Dry grid points (<0.1 mm/day) are filtered out to highlight active precipitation bands. Coordinate data coverage is fully assimilated.</p>", unsafe_allow_html=True)
         
 
+        vis_style = st.radio(
+            "Map Visualization Style:",
+            ["Flat Map (Plotly Mapbox)", "3D Elevation Columns (PyDeck)"],
+            horizontal=True,
+            key="dashboard_vis_style"
+        )
+        
+        def get_map_fig(da, title, colorscale, val_name, plot_wind=False, plot_currents=False, zmin=None, zmax=None):
+            if vis_style == "3D Elevation Columns (PyDeck)":
+                from src.map_deck import plot_pydeck_3d_grid
+                return plot_pydeck_3d_grid(da, title, colorscale)
+            else:
+                return plot_spatial_map(da, title, colorscale, val_name=val_name, plot_wind=plot_wind, plot_currents=plot_currents, zmin=zmin, zmax=zmax)
+
         tab_rain, tab_maxt, tab_mint, tab_lst, tab_sst, tab_insat_rain, tab_fused, tab_sm = st.tabs([
             "IMD Rainfall (0.25°)", 
             "IMD Max Temp (1.0°)", 
@@ -1453,22 +1487,22 @@ if page == "Dashboard":
             if ds_sm is not None:
                 curr_sm = predictor.slice_region(ds_sm, pilot_region)
                 curr_sm = mask_region_boundary_local(curr_sm, pilot_region)
-                event_sm = render_map(plot_spatial_map(curr_sm, f"NICES Soil Moisture Proxy ({pilot_region})", "BrBG", val_name="Moisture (%)", plot_wind=overlay_wind), use_container_width=True, on_select="rerun")
+                event_sm = render_map(get_map_fig(curr_sm, f"NICES Soil Moisture Proxy ({pilot_region})", "BrBG", val_name="Moisture (%)", plot_wind=overlay_wind), use_container_width=True, on_select="rerun")
             else:
                 st.warning("Soil Moisture data not available.")
         
         with tab_rain:
-            event_rain = render_map(plot_spatial_map(curr_rain, f"IMD Gridded Rainfall ({pilot_region})", "Blues", val_name="Rain (mm)", plot_wind=overlay_wind), use_container_width=True, on_select="rerun")
+            event_rain = render_map(get_map_fig(curr_rain, f"IMD Gridded Rainfall ({pilot_region})", "Blues", val_name="Rain (mm)", plot_wind=overlay_wind), use_container_width=True, on_select="rerun")
         with tab_maxt:
-            event_maxt = render_map(plot_spatial_map(curr_temp, f"IMD Gridded Max Temp ({pilot_region})", "YlOrRd", val_name="Max Temp (°C)", plot_wind=overlay_wind), use_container_width=True, on_select="rerun")
+            event_maxt = render_map(get_map_fig(curr_temp, f"IMD Gridded Max Temp ({pilot_region})", "YlOrRd", val_name="Max Temp (°C)", plot_wind=overlay_wind), use_container_width=True, on_select="rerun")
         with tab_mint:
             if curr_mint is not None:
-                event_mint = render_map(plot_spatial_map(curr_mint, f"IMD Gridded Min Temp ({pilot_region})", "Viridis", val_name="Min Temp (°C)", plot_wind=overlay_wind), use_container_width=True, on_select="rerun")
+                event_mint = render_map(get_map_fig(curr_mint, f"IMD Gridded Min Temp ({pilot_region})", "Viridis", val_name="Min Temp (°C)", plot_wind=overlay_wind), use_container_width=True, on_select="rerun")
             else:
                 st.warning("Minimum Temperature data not available for this date.")
         with tab_lst:
             if curr_lst is not None:
-                event_lst = render_map(plot_spatial_map(curr_lst, f"MOSDAC INSAT LST ({pilot_region})", "Magma", val_name="LST (°C)"), use_container_width=True, on_select="rerun")
+                event_lst = render_map(get_map_fig(curr_lst, f"MOSDAC INSAT LST ({pilot_region})", "Magma", val_name="LST (°C)"), use_container_width=True, on_select="rerun")
             else:
                 st.warning("LST data not available for this date.")
         with tab_sst:
@@ -1480,11 +1514,11 @@ if page == "Dashboard":
                     overlay_currents = st.checkbox("Overlay Geostrophic Ocean Currents", value=False, key="sst_curr_overlay")
                 
                 if sst_mode == "Raw Temperature":
-                    event_sst = render_map(plot_spatial_map(curr_sst, f"MOSDAC INSAT SST ({pilot_region})", "Jet", val_name="SST (°C)", plot_currents=overlay_currents), use_container_width=True, on_select="rerun")
+                    event_sst = render_map(get_map_fig(curr_sst, f"MOSDAC INSAT SST ({pilot_region})", "Jet", val_name="SST (°C)", plot_currents=overlay_currents), use_container_width=True, on_select="rerun")
                 else:
                     from src.marine_analysis import detect_marine_heatwaves
                     mhw_da = detect_marine_heatwaves(curr_sst)
-                    event_sst = render_map(plot_spatial_map(mhw_da, f"Active Marine Heatwaves ({pilot_region})", "turbo", val_name="MHW Category", zmin=0.0, zmax=4.0, plot_currents=overlay_currents), use_container_width=True, on_select="rerun")
+                    event_sst = render_map(get_map_fig(mhw_da, f"Active Marine Heatwaves ({pilot_region})", "turbo", val_name="MHW Category", zmin=0.0, zmax=4.0, plot_currents=overlay_currents), use_container_width=True, on_select="rerun")
                     st.caption("**MHW Categories**: 0 = Normal, 1 = Moderate, 2 = Strong, 3 = Severe, 4 = Extreme")
                     
                     # Compute MHW statistics
@@ -1502,7 +1536,7 @@ if page == "Dashboard":
                 st.warning("SST data not available for this date.")
         with tab_insat_rain:
             if curr_insat_rain is not None:
-                event_insat_rain = render_map(plot_spatial_map(curr_insat_rain, f"MOSDAC INSAT Rainfall ({pilot_region})", "Teal", val_name="Rain (mm)"), use_container_width=True, on_select="rerun")
+                event_insat_rain = render_map(get_map_fig(curr_insat_rain, f"MOSDAC INSAT Rainfall ({pilot_region})", "Teal", val_name="Rain (mm)"), use_container_width=True, on_select="rerun")
             else:
                 st.warning("INSAT Rainfall data not available for this date.")
         with tab_fused:
@@ -1512,7 +1546,7 @@ if page == "Dashboard":
                     try:
                         insat_interp = curr_insat_rain.interp_like(curr_rain, method="nearest")
                         fused_rain = predictor.assimilate_multi_source_data(curr_rain, insat_interp, variable="rainfall")
-                        event_fused = render_map(plot_spatial_map(fused_rain, f"Assimilated Fused Rainfall ({pilot_region})", "Blues", val_name="Rain (mm)"), use_container_width=True, on_select="rerun")
+                        event_fused = render_map(get_map_fig(fused_rain, f"Assimilated Fused Rainfall ({pilot_region})", "Blues", val_name="Rain (mm)"), use_container_width=True, on_select="rerun")
                     except Exception as e:
                         st.warning(f"Data assimilation failed: {e}")
                 else:
@@ -1522,7 +1556,7 @@ if page == "Dashboard":
                     try:
                         lst_interp = curr_lst.interp_like(curr_temp, method="nearest")
                         fused_temp = predictor.assimilate_multi_source_data(curr_temp, lst_interp, variable="temperature")
-                        event_fused = render_map(plot_spatial_map(fused_temp, f"Assimilated Fused Temperature ({pilot_region})", "YlOrRd", val_name="Temp (°C)"), use_container_width=True, on_select="rerun")
+                        event_fused = render_map(get_map_fig(fused_temp, f"Assimilated Fused Temperature ({pilot_region})", "YlOrRd", val_name="Temp (°C)"), use_container_width=True, on_select="rerun")
                     except Exception as e:
                         st.warning(f"Data assimilation failed: {e}")
                 else:
@@ -1687,35 +1721,62 @@ if page == "Dashboard":
                             target_var_grid, days_ahead=7, clim_atlas=clim_atlas_rain_regional if is_rainfall else None
                         )
                         
+                        from src.ensemble_forecast import MultiModelEnsemble
+                        predictions_arr = np.array(predictions)
+                        ens_res = MultiModelEnsemble.forecast_ensemble(target_var_grid, predictions_arr, days_ahead=7)
+                        
                         pt_preds = [float(p[lat_idx, lon_idx]) for p in predictions]
-                        pt_lower = [float(l[lat_idx, lon_idx]) for l in lower_b]
-                        pt_upper = [float(u[lat_idx, lon_idx]) for u in upper_b]
+                        pt_nwp = [float(p[lat_idx, lon_idx]) for p in ens_res["nwp_forecast"]]
+                        pt_ens = [float(p[lat_idx, lon_idx]) for p in ens_res["ensemble_mean"]]
+                        pt_lower = [float(l[lat_idx, lon_idx]) for l in ens_res["lower_bound"]]
+                        pt_upper = [float(u[lat_idx, lon_idx]) for u in ens_res["upper_bound"]]
                         
                         last_date = hist_dates[-1]
                         future_dates = pd.date_range(start=last_date + pd.Timedelta(days=1), periods=7, freq='D')
                         
                         fig_pt = go.Figure()
+                        
+                        # Historical Observations
                         fig_pt.add_trace(go.Scatter(
                             x=hist_dates, y=hist_series, mode='lines+markers', 
                             line=dict(color='#94A3B8', width=2), marker=dict(size=5, color='#CBD5E1'), 
                             name='Historical Observation'
                         ))
+                        
+                        # 95% Ensemble Confidence Interval Shadow
                         fut_x_list = list(future_dates)
                         fig_pt.add_trace(go.Scatter(
                             x=fut_x_list + fut_x_list[::-1], y=pt_upper + pt_lower[::-1], 
                             fill='toself', fillcolor='rgba(255, 107, 0, 0.15)', 
                             line=dict(color='rgba(255,255,255,0)'), hoverinfo="skip", 
-                            showlegend=True, name='Forecast Uncertainty (±1σ)'
+                            showlegend=True, name='Ensemble 95% Confidence Shadow'
                         ))
+                        
+                        # ConvLSTM Trace
                         fig_pt.add_trace(go.Scatter(
                             x=future_dates, y=pt_preds, mode='lines+markers', 
-                            line=dict(color='#FF6B00', width=3, dash='dash'), marker=dict(size=6, color='#FF6B00'), 
-                            name='AI Forecast'
+                            line=dict(color='#3B82F6', width=2, dash='dash'), marker=dict(size=5, color='#3B82F6'), 
+                            name='ConvLSTM AI Forecast'
                         ))
+                        
+                        # NWP Trace
+                        fig_pt.add_trace(go.Scatter(
+                            x=future_dates, y=pt_nwp, mode='lines+markers', 
+                            line=dict(color='#10B981', width=2, dash='dash'), marker=dict(size=5, color='#10B981'), 
+                            name='NWP Numerical Model'
+                        ))
+                        
+                        # Multi-Model Ensemble Mean Trace
+                        fig_pt.add_trace(go.Scatter(
+                            x=future_dates, y=pt_ens, mode='lines+markers', 
+                            line=dict(color='#FF6B00', width=3), marker=dict(size=6, color='#FF6B00'), 
+                            name='Multi-Model Ensemble Mean'
+                        ))
+                        
                         if not np.isnan(hist_series[-1]):
                             fig_pt.add_trace(go.Scatter(
-                                x=[last_date, future_dates[0]], y=[float(hist_series[-1]), pt_preds[0]],
-                                mode='lines', line=dict(color='#FF6B00', width=3, dash='dash'), 
+                                x=[last_date, future_dates[0]], y=[float(hist_series[-1]), pt_ens[0]],
+                                mode='lines', line=dict(color='#FF6B00', width=2), 
                                 showlegend=False, hoverinfo='skip'
                             ))
                             
