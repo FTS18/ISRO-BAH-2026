@@ -92,14 +92,21 @@ class SpatialClimatePredictor:
             paths = STATE_PATHS[region_name]
             
         if paths:
-            lon_grid, lat_grid = np.meshgrid(sliced.lon.values, sliced.lat.values)
-            points = np.column_stack((lon_grid.ravel(), lat_grid.ravel()))
-            mask = np.zeros(len(points), dtype=bool)
-            for path in paths:
-                mask |= path.contains_points(points)
-            mask_2d = mask.reshape(lat_grid.shape)
-            mask_da = xr.DataArray(mask_2d, coords=[sliced.lat, sliced.lon], dims=["lat", "lon"])
-            sliced = sliced.where(mask_da, np.nan)
+            # Check if this is SST (Sea Surface Temperature)
+            if isinstance(sliced, xr.Dataset):
+                is_sst = "sst" in sliced.data_vars
+            else:
+                is_sst = sliced.name == "sst"
+                
+            if not is_sst:
+                lon_grid, lat_grid = np.meshgrid(sliced.lon.values, sliced.lat.values)
+                points = np.column_stack((lon_grid.ravel(), lat_grid.ravel()))
+                mask = np.zeros(len(points), dtype=bool)
+                for path in paths:
+                    mask |= path.contains_points(points)
+                mask_2d = mask.reshape(lat_grid.shape)
+                mask_da = xr.DataArray(mask_2d, coords=[sliced.lat, sliced.lon], dims=["lat", "lon"])
+                sliced = sliced.where(mask_da, np.nan)
             
         return sliced
 

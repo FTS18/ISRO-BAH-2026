@@ -469,6 +469,16 @@ def mask_region_boundary_local(data_array, region_name):
     if data_array is None:
         return data_array
         
+    # Check if this is SST (Sea Surface Temperature), which only contains data over the ocean.
+    # We do not want to mask it to the land boundary.
+    if isinstance(data_array, xr.Dataset):
+        is_sst = "sst" in data_array.data_vars
+    else:
+        is_sst = data_array.name == "sst"
+        
+    if is_sst:
+        return data_array
+        
     # Check if this is an IMD dataset (these are natively masked in the netCDF files/slice_region)
     if isinstance(data_array, xr.Dataset):
         has_imd = any(v in data_array.data_vars for v in ["rainfall", "max_temp", "min_temp"])
