@@ -2398,9 +2398,26 @@ elif page == "Climate Drivers":
 
     # ── Teleconnection Indices ──────────────────────────────────────────────
     st.markdown('<h3 class="section-header">Real-Time Teleconnection Indices</h3>', unsafe_allow_html=True)
-    enso = teleconn_data.get("enso", {})
-    iod  = teleconn_data.get("iod",  {})
-    mjo  = teleconn_data.get("mjo",  {})
+    slider_key = f"date_slider_{pilot_region}"
+    if ds_rain is not None:
+        date_options = list(pd.to_datetime(reg_rain.time.values).strftime('%Y-%m-%d'))
+        active_date_str = st.session_state.get(slider_key, date_options[-1])
+    else:
+        active_date_str = "2026-07-05"
+        
+    active_sst = None
+    if ds_sst is not None:
+        try:
+            target_dt = pd.to_datetime(active_date_str)
+            active_sst = ds_sst.sst.sel(time=target_dt, method='nearest')
+        except Exception:
+            pass
+            
+    from src.teleconnections import get_teleconnections_for_date
+    teleconn_active = get_teleconnections_for_date(active_date_str, active_sst)
+    enso = teleconn_active.get("enso", {})
+    iod  = teleconn_active.get("iod",  {})
+    mjo  = teleconn_active.get("mjo",  {})
 
     col_e, col_i, col_m = st.columns(3)
     with col_e:
