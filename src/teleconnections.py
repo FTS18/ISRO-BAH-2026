@@ -149,3 +149,8 @@ def get_teleconnections_for_date(date_str: str, sst_da: xr.DataArray = None) -> 
             "status": "LIVE"
         }
     }
+
+def fetch_all_teleconnections():
+    """Fetch all teleconnection indices. Returns combined dict."""
+    return get_teleconnections_for_date(datetime.now().strftime('%Y-%m-%d'))
+
