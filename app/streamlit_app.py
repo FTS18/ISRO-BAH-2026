@@ -480,6 +480,9 @@ def mask_region_boundary_local(data_array, region_name):
     else:
         return data_array
         
+    if not paths:
+        return data_array
+        
     lats = data_array.lat.values
     lons = data_array.lon.values
     
@@ -1278,12 +1281,21 @@ if page == "Dashboard":
         st.markdown(f'<h2 class="section-header" style="margin-top: 0px;">Historical Reanalysis & AI Forecasting Lab (2015-2026 Live)</h2>', unsafe_allow_html=True)
         
         # Date Selector Slider — default to today, keyed by region to reset on region change
-        available_dates = pd.to_datetime(reg_rain.time.values)
+        # Filter dates to only include those that have valid (non-nan) rainfall data
+        rain_time = reg_rain.time
+        valid_date_indices = ~np.isnan(reg_rain.rainfall.mean(dim=['lat', 'lon']))
+        valid_times = rain_time.where(valid_date_indices, drop=True)
+        available_dates = pd.to_datetime(valid_times.values)
+        
+        # Fallback to all dates if somehow none are valid
+        if len(available_dates) == 0:
+            available_dates = pd.to_datetime(reg_rain.time.values)
+            
         date_options = list(available_dates.strftime('%Y-%m-%d'))
         
-        # Force-reset slider to the most recent live data date when region changes
+        # Force-reset slider to the most recent live data date when region changes or if current state value is invalid
         slider_key = f"date_slider_{pilot_region}"
-        if slider_key not in st.session_state:
+        if slider_key not in st.session_state or st.session_state[slider_key] not in date_options:
             st.session_state[slider_key] = date_options[-1]
         
         selected_date = st.select_slider(
@@ -1297,12 +1309,12 @@ if page == "Dashboard":
         
         target_dt = pd.to_datetime(selected_date)
         monsoon_onset_data = load_monsoon_onset_data_v3(target_dt.year)
-        curr_rain = reg_rain_masked.rainfall.sel(time=target_dt, method='nearest')
-        curr_temp = reg_temp_masked.max_temp.sel(time=target_dt, method='nearest')
-        curr_mint = reg_mint_masked.min_temp.sel(time=target_dt, method='nearest') if reg_mint_masked is not None else None
-        curr_lst  = reg_lst_masked.lst.sel(time=target_dt, method='nearest') if reg_lst_masked is not None else None
-        curr_sst  = reg_sst_masked.sst.sel(time=target_dt, method='nearest') if reg_sst_masked is not None else None
-        curr_insat_rain = reg_insat_rain_masked.rain.sel(time=target_dt, method='nearest') if reg_insat_rain_masked is not None else None
+        curr_rain = reg_rain.rainfall.sel(time=target_dt, method='nearest')
+        curr_temp = reg_temp.max_temp.sel(time=target_dt, method='nearest')
+        curr_mint = reg_mint.min_temp.sel(time=target_dt, method='nearest') if reg_mint is not None else None
+        curr_lst  = reg_lst.lst.sel(time=target_dt, method='nearest') if reg_lst is not None else None
+        curr_sst  = reg_sst.sst.sel(time=target_dt, method='nearest') if reg_sst is not None else None
+        curr_insat_rain = reg_insat_rain.rain.sel(time=target_dt, method='nearest') if reg_insat_rain is not None else None
         
         col1, col2, col3, col4 = st.columns(4)
         with col1:
