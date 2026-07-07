@@ -2322,7 +2322,11 @@ elif page == "Analysis":
     
     if reg_lst is not None:
         latest_lst = reg_lst.lst.isel(time=-1)
-        fused_temp = predictor.assimilate_multi_source_data(latest_temp, latest_lst, variable="temperature")
+        try:
+            latest_lst_interp = latest_lst.interp_like(latest_temp, method="nearest")
+        except Exception:
+            latest_lst_interp = latest_lst
+        fused_temp = predictor.assimilate_multi_source_data(latest_temp, latest_lst_interp, variable="temperature")
         
         col_da1, col_da2, col_da3 = st.columns(3)
         with col_da1:

@@ -529,6 +529,11 @@ class SpatialClimatePredictor:
             var_sat    = 5.0 ** 2
         weight_ground = var_sat    / (var_ground + var_sat)
         weight_sat    = var_ground / (var_ground + var_sat)
+        
+        # Align insat_sat_grid to match imd_ground_grid coordinates/shape if they differ
+        if hasattr(insat_sat_grid, "interp_like") and insat_sat_grid.shape != imd_ground_grid.shape:
+            insat_sat_grid = insat_sat_grid.interp_like(imd_ground_grid, method="nearest")
+
         fused_grid = (imd_ground_grid.values * weight_ground) + (insat_sat_grid.values * weight_sat)
         return xr.DataArray(
             fused_grid,
